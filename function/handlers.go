@@ -2,13 +2,15 @@ package function
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/prokhorind/nextcloud/config"
 	"github.com/prokhorind/nextcloud/function/calendar"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
 	"github.com/prokhorind/nextcloud/function/search"
 )
 
-func InitHandlers(r *gin.Engine) {
+func InitHandlers(r *gin.Engine, conf config.Config) {
+	r.Use(setAppConfig(conf))
 	r.GET("/manifest.json", install.GetManifest)
 	r.GET("/static/icon.png", install.GetIcon)
 	r.POST("/bindings", install.Bindings)
@@ -21,4 +23,11 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("send", search.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
+}
+
+func setAppConfig(conf config.Config) gin.HandlerFunc {
+
+	return func(ctx *gin.Context) {
+		ctx.Set("config", conf)
+	}
 }

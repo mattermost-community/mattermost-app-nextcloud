@@ -13,3 +13,5 @@
 
 .DS_Store
 .DS_Store?
+dist/**
+http-server/__debug_bin

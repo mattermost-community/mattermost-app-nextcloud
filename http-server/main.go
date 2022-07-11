@@ -1,8 +1,10 @@
 package main
 
 import (
+	"flag"
 	"log"
 	"net/url"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prokhorind/nextcloud/config"
@@ -12,18 +14,26 @@ import (
 func main() {
 	r := gin.Default()
 
-	function.InitHandlers(r)
+	configuration := getConfiguration()
+	function.InitHandlers(r, configuration)
 
-	portStr := getPort()
+	portStr := getPort(configuration)
 	r.Run(":" + portStr)
 
 }
 
-func getPort() string {
-	configuration, err := config.LoadConfig("../config")
+func getConfiguration() config.Config {
+	cpath := getEnv("CONFIGPATH", "../config")
+	flag.Parse()
+
+	configuration, err := config.LoadConfig(cpath)
 	if err != nil {
 		log.Fatal("cannot load config:", err)
 	}
+	return configuration
+}
+
+func getPort(configuration config.Config) string {
 
 	portStr := configuration.Port
 
@@ -36,4 +46,12 @@ func getPort() string {
 	}
 
 	return portStr
+}
+
+func getEnv(key, fallback string) string {
+	value, exists := os.LookupEnv(key)
+	if !exists {
+		value = fallback
+	}
+	return value
 }

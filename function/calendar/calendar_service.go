@@ -18,7 +18,7 @@ func CreateEventBody(creq apps.CallRequest) (string, string) {
 	description := creq.Values["description"].(string)
 	title := creq.Values["title"].(string)
 
-	userEmail := creq.Context.User.Email
+	organizerId := creq.Context.ActingUser.Id
 
 	attendee := creq.Values["attendees"].(map[string]interface{})["value"].(string)
 
@@ -26,6 +26,8 @@ func CreateEventBody(creq apps.CallRequest) (string, string) {
 	userIds = append(userIds, attendee)
 
 	asBot := appclient.AsBot(creq.Context)
+
+	organizer, _, _ := asBot.GetUsersByIds([]string{organizerId})
 	users, _, e := asBot.GetUsersByIds(userIds)
 
 	if e != nil {
@@ -45,7 +47,7 @@ func CreateEventBody(creq apps.CallRequest) (string, string) {
 	event.SetLocation("Address")
 	event.SetDescription(description)
 	event.AddRrule(fmt.Sprintf("FREQ=YEARLY;BYMONTH=%d;BYMONTHDAY=%d", time.Now().Month(), time.Now().Day()))
-	event.SetOrganizer(userEmail, ics.WithCN("Owner"))
+	event.SetOrganizer(organizer[0].Email, ics.WithCN("Owner"))
 
 	for _, u := range users {
 		event.AddAttendee(u.Email, ics.CalendarUserTypeIndividual, ics.ParticipationStatusNeedsAction, ics.ParticipationRoleReqParticipant, ics.WithRSVP(true))
@@ -78,9 +80,11 @@ func GetUserCalendars(reqUrl string, accessToken string) []apps.SelectOption {
 		calendarName := r.Propstat.Prop.Displayname
 
 		if len(calendarName) > 0 {
+			splitUrl := strings.Split(r.Href, "/")
+			val := splitUrl[len(splitUrl)-2]
 			selectOption := apps.SelectOption{
 				Label: calendarName,
-				Value: calendarName,
+				Value: val,
 			}
 			selectOptions = append(selectOptions, selectOption)
 		}

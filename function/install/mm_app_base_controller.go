@@ -2,7 +2,6 @@ package install
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,11 +11,8 @@ import (
 )
 
 func GetManifest(c *gin.Context) {
-	configuration, err := config.LoadConfig("./config")
 
-	if err != nil {
-		log.Fatal("cannot load config:", err)
-	}
+	configuration := c.MustGet("config").(config.Config)
 
 	manifest := apps.Manifest{
 		AppID:       "next-cloud",
