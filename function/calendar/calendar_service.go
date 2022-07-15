@@ -13,6 +13,10 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 )
 
+const (
+	icalTimestampFormatUtc = "20060102T150405Z"
+)
+
 func CreateEventBody(creq apps.CallRequest) (string, string) {
 
 	description := creq.Values["description"].(string)
@@ -114,4 +118,56 @@ func getUserCalendars(url string, token string) UserCalendarsResponse {
 	xml.NewDecoder(resp.Body).Decode(&xmlResp)
 
 	return xmlResp
+}
+
+func GetCalendarEvents(event CalendarEventRequestRange, url string, token string) []string {
+
+	resp := getCalendarEvents(event, url, token)
+	events := make([]string, 0)
+
+	for _, r := range resp.Response {
+		cal, _ := ics.ParseCalendar(strings.NewReader(r.Propstat.Prop.CalendarData))
+
+		
+		fmt.Printf(cal.Serialize())
+		events = append(events, r.Propstat.Prop.CalendarData)
+	}
+	return events
+}
+
+func getCalendarEvents(event CalendarEventRequestRange, url string, token string) UserCalendarEventsResponse {
+
+	from := event.From.UTC().Format(icalTimestampFormatUtc)
+	to := event.To.UTC().Format(icalTimestampFormatUtc)
+
+	body := fmt.Sprintf(`<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav"
+    xmlns:cs="http://calendarserver.org/ns/"
+    xmlns:ca="http://apple.com/ns/ical/" 
+    xmlns:d="DAV:">                                                            
+    <d:prop>                
+        <c:calendar-data />
+    </d:prop>  
+        <c:filter>
+        <c:comp-filter name="VCALENDAR">
+            <c:comp-filter name="VEVENT">
+                <c:time-range start="%s" end="%s"/>
+            </c:comp-filter>
+        </c:comp-filter>
+    </c:filter>
+</c:calendar-query> `, from, to)
+
+	req, _ := http.NewRequest("REPORT", url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Depth", "1")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+
+	xmlResp := UserCalendarEventsResponse{}
+	xml.NewDecoder(resp.Body).Decode(&xmlResp)
+
+	return xmlResp
+
 }

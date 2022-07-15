@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prokhorind/nextcloud/config"
 	"github.com/prokhorind/nextcloud/function/calendar"
+	"github.com/prokhorind/nextcloud/function/file"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
 	"github.com/prokhorind/nextcloud/function/search"
@@ -23,6 +24,9 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("send", search.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
+	r.POST("/get-calendar-events-form", calendar.HandleGetEventsForm)
+	r.POST("/get-calendar-events", calendar.HandleGetEvents)
+	r.POST("/file-upload", file.FileUpload)
 }
 
 func setAppConfig(conf config.Config) gin.HandlerFunc {

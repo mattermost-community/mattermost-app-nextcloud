@@ -27,6 +27,7 @@ func GetManifest(c *gin.Context) {
 		},
 		RequestedLocations: []apps.Location{
 			apps.LocationCommand,
+			apps.LocationPostMenu,
 		},
 		Bindings: apps.NewCall("/bindings").WithExpand(apps.Expand{
 			ActingUser: apps.ExpandAll,
@@ -114,6 +115,18 @@ func Bindings(c *gin.Context) {
 					Channel:               apps.ExpandAll,
 				}),
 			},
+
+			apps.Binding{
+				Location: "get-calendar-events",
+				Label:    "get-calendar-events",
+
+				Submit: apps.NewCall("/get-calendar-events-form").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+				}),
+			},
 		)
 	}
 
@@ -153,15 +166,34 @@ func Bindings(c *gin.Context) {
 		commandBinding.Bindings = append(commandBinding.Bindings, configure)
 	}
 
+	upload := apps.Binding{
+		Label:    "Upload file to Nextcloud",
+		Location: apps.Location("id"),
+		Icon:     "icon.png",
+		Submit: apps.NewCall("/file-upload").WithExpand(apps.Expand{
+			OAuth2App:  apps.ExpandAll,
+			OAuth2User: apps.ExpandAll,
+			Post:       apps.ExpandAll,
+		}),
+	}
+
 	c.JSON(http.StatusOK, apps.CallResponse{
 		Type: apps.CallResponseTypeOK,
-		Data: []apps.Binding{{
-			Location: apps.LocationCommand,
-			Bindings: []apps.Binding{
-				commandBinding,
+		Data: []apps.Binding{
+			{
+				Location: apps.LocationCommand,
+				Bindings: []apps.Binding{
+					commandBinding,
+				},
 			},
-		}},
-	})
+			{
+				Location: apps.LocationPostMenu,
+				Label:    "Nextcloud",
+				Bindings: []apps.Binding{
+					upload,
+				},
+			},
+		}})
 }
 
 func remarshal(dst, src interface{}) {
