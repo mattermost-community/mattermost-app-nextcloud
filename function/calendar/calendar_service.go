@@ -14,7 +14,8 @@ import (
 )
 
 const (
-	icalTimestampFormatUtc = "20060102T150405Z"
+	icalTimestampFormatUtcLocal = "20060102T150405"
+	icalTimestampFormatUtc      = "20060102T150405Z"
 )
 
 func CreateEventBody(creq apps.CallRequest) (string, string) {
@@ -126,10 +127,6 @@ func GetCalendarEvents(event CalendarEventRequestRange, url string, token string
 	events := make([]string, 0)
 
 	for _, r := range resp.Response {
-		cal, _ := ics.ParseCalendar(strings.NewReader(r.Propstat.Prop.CalendarData))
-
-		
-		fmt.Printf(cal.Serialize())
 		events = append(events, r.Propstat.Prop.CalendarData)
 	}
 	return events

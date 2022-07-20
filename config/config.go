@@ -5,8 +5,9 @@ import (
 )
 
 type Config struct {
-	APPURL string `"mapstructure:"APPURL"`
-	Port   string `"mapstructure:"PORT"`
+	APPURL       string `mapstructure:"APPURL"`
+	Port         string `mapstructure:"PORT"`
+	STATICFOLDER string `mapstructure:"STATICFOLDER"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

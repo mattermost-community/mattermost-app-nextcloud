@@ -15,3 +15,5 @@
 .DS_Store?
 dist/**
 http-server/__debug_bin
+/.idea/
+/dist/

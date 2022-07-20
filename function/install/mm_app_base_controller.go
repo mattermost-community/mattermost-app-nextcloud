@@ -15,7 +15,7 @@ func GetManifest(c *gin.Context) {
 	configuration := c.MustGet("config").(config.Config)
 
 	manifest := apps.Manifest{
-		AppID:       "next-cloud",
+		AppID:       "nextcloud",
 		Version:     "v1.0.0",
 		DisplayName: "Nextcloud integration app",
 		Icon:        "icon.png",
@@ -24,6 +24,7 @@ func GetManifest(c *gin.Context) {
 			apps.PermissionActAsUser,
 			apps.PermissionRemoteOAuth2,
 			apps.PermissionActAsBot,
+			apps.PermissionRemoteWebhooks,
 		},
 		RequestedLocations: []apps.Location{
 			apps.LocationCommand,
@@ -34,6 +35,7 @@ func GetManifest(c *gin.Context) {
 			OAuth2User: apps.ExpandAll,
 		}),
 
+		RemoteWebhookAuthType: apps.NoAuth,
 		Deploy: apps.Deploy{
 			HTTP: &apps.HTTP{
 				RootURL: configuration.APPURL,
@@ -46,7 +48,9 @@ func GetManifest(c *gin.Context) {
 }
 
 func GetIcon(c *gin.Context) {
-	c.File("../static/icon.png")
+	configuration := c.MustGet("config").(config.Config)
+
+	c.File(configuration.STATICFOLDER + "/icon.png")
 }
 
 func Bindings(c *gin.Context) {

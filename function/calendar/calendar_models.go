@@ -17,14 +17,7 @@ type NextcloudXmlResponseHeaders struct {
 }
 
 type UserCalendarsResponse struct {
-	XMLName  xml.Name `xml:"multistatus"`
-	Text     string   `xml:",chardata"`
-	D        string   `xml:"d,attr"`
-	S        string   `xml:"s,attr"`
-	Cal      string   `xml:"cal,attr"`
-	Cs       string   `xml:"cs,attr"`
-	Oc       string   `xml:"oc,attr"`
-	Nc       string   `xml:"nc,attr"`
+	NextcloudXmlResponseHeaders
 	Response []struct {
 		Text     string `xml:",chardata"`
 		Href     string `xml:"href"`
