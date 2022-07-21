@@ -1,4 +1,4 @@
-package models
+package file
 
 import "encoding/xml"
 
@@ -9,10 +9,10 @@ type FileSearchResponseBody struct {
 	S            string         `xml:"s,attr"`
 	Oc           string         `xml:"oc,attr"`
 	Nc           string         `xml:"nc,attr"`
-	FileResponse []fileResponse `xml:"response"`
+	FileResponse []FileResponse `xml:"response"`
 }
 
-type fileResponse struct {
+type FileResponse struct {
 	Text          string         `xml:",chardata"`
 	Href          string         `xml:"href"`
 	PropertyStats []propertyStat `xml:"propstat"`

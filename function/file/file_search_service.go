@@ -1,77 +1,48 @@
-package search
+package file
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"net/http"
-	"strings"
-
-	"github.com/gin-gonic/gin"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/mattermost/mattermost-server/v6/model"
-	"github.com/prokhorind/nextcloud/function/oauth"
-	"github.com/prokhorind/nextcloud/function/search/models"
+	"net/http"
+	"strings"
 )
 
-func FileSearch(c *gin.Context) {
-	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
-
-	token := oauth.RefreshToken(creq)
-	accessToken := token.AccessToken
-
-	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
-
-	fileName := creq.Values["file_name"].(string)
-
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-
-	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
-
-	body := createSearchRequestBody(userId, fileName)
-
+func sendFileSearchRequest(url string, body string, accessToken string) FileSearchResponseBody {
 	req, _ := http.NewRequest("SEARCH", url, strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/xml")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
-
 	client := &http.Client{}
 	resp, _ := client.Do(req)
 	defer resp.Body.Close()
 
-	xmlResp := models.FileSearchResponseBody{}
+	xmlResp := FileSearchResponseBody{}
 	xml.NewDecoder(resp.Body).Decode(&xmlResp)
+	return xmlResp
+}
 
+func sendFiles(f FileResponse, creq *apps.CallRequest) {
+	ref := f.Href
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	asBot := appclient.AsBot(creq.Context)
-	//asBot.DM(creq.Context.ActingUser.Id, "Authenticated")
 
-	files := xmlResp.FileResponse
+	hasContentType := false
 
-	for _, f := range files {
-		ref := f.Href
-
-		hasContetType := false
-
-		for _, p := range f.PropertyStats {
-			if len(p.Property.Getcontenttype) != 0 {
-				hasContetType = true
-				break
-			}
-
-		}
-		if hasContetType {
-			post := model.Post{
-				Message:   remoteUrl + ref,
-				ChannelId: creq.Context.Channel.Id,
-			}
-			asBot.CreatePost(&post)
+	for _, p := range f.PropertyStats {
+		if len(p.Property.Getcontenttype) != 0 {
+			hasContentType = true
+			break
 		}
 	}
-
-	c.JSON(http.StatusOK, apps.NewDataResponse(nil))
+	if hasContentType {
+		post := model.Post{
+			Message:   remoteUrl + ref,
+			ChannelId: creq.Context.Channel.Id,
+		}
+		asBot.CreatePost(&post)
+	}
 }
 
 func createSearchRequestBody(userName string, fileName string) string {

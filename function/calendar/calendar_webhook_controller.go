@@ -16,19 +16,20 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 
 	stm, _ := json.Marshal(creq)
 	fmt.Println(string(stm))
-	event, _ := GetCalendarEvent(creq)
+	calendarWebhookService := CalenderWebhookServiceImpl{creq}
+	event, _ := calendarWebhookService.GetCalendarEvent(creq)
 
 	asBot := appclient.AsBot(creq.Context)
 
 	for _, a := range event.AttendeeEmails {
 		u, _, _ := asBot.GetUserByEmail(a, "")
 		post := createPostWithBindings(event)
-		asBot.DMPost(u.Id, &post)
+		asBot.DMPost(u.Id, post)
 	}
 
 }
 
-func createPostWithBindings(event *CalendarEventDto) model.Post {
+func createPostWithBindings(event *CalendarEventDto) *model.Post {
 
 	post := model.Post{
 		Message: string(event.Summary) + " " + event.GetFormattedStartDate("Jan _2 15:04:05") + " " + event.GetFormattedEndDate("Jan _2 15:04:05"),
@@ -69,5 +70,5 @@ func createPostWithBindings(event *CalendarEventDto) model.Post {
 
 	post.SetProps(m1)
 
-	return post
+	return &post
 }

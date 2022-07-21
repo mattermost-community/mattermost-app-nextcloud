@@ -7,7 +7,6 @@ import (
 	"github.com/prokhorind/nextcloud/function/file"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
-	"github.com/prokhorind/nextcloud/function/search"
 )
 
 func InitHandlers(r *gin.Engine, conf config.Config) {
@@ -20,8 +19,8 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("/disconnect", oauth.Disconnect)
 	r.POST("/oauth2/complete", oauth.Oauth2Complete)
 	r.POST("/oauth2/connect", oauth.Oauth2Connect)
-	r.POST("/file/search", search.FileSearch)
-	r.POST("send", search.FileSearch)
+	r.POST("/file/search", file.FileSearch)
+	r.POST("send", file.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
 	r.POST("/get-calendar-events-form", calendar.HandleGetEventsForm)

@@ -17,13 +17,16 @@ func HandleCreateEvent(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
-	token := oauth.RefreshToken(creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+
+	token := oauthService.RefreshToken()
 	accessToken := token.AccessToken
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
 
-	uuid, body := CreateEventBody(creq)
+	calendarEventService := CalendarEventServiceImpl{creq}
+	uuid, body := calendarEventService.CreateEventBody()
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -31,7 +34,8 @@ func HandleCreateEvent(c *gin.Context) {
 
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, calendar, uuid)
 
-	CreateEvent(reqUrl, accessToken, body)
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarService.CreateEvent(body)
 
 	c.JSON(http.StatusOK, apps.NewTextResponse("event created:"+reqUrl))
 }
@@ -40,7 +44,8 @@ func HandleCreateEventForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
-	token := oauth.RefreshToken(creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
@@ -51,6 +56,8 @@ func HandleCreateEventForm(c *gin.Context) {
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s", remoteUrl, userId)
 
 	accessToken := token.AccessToken
+
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 
 	form := &apps.Form{
 		Title: "Create Nextcloud calendar event",
@@ -82,7 +89,7 @@ func HandleCreateEventForm(c *gin.Context) {
 				Name:                "calendar",
 				Label:               "Calendar",
 				IsRequired:          true,
-				SelectStaticOptions: GetUserCalendars(reqUrl, accessToken),
+				SelectStaticOptions: calendarService.GetUserCalendars(),
 			},
 		},
 		Submit: apps.NewCall("/create-calendar-event").WithExpand(apps.Expand{
@@ -100,7 +107,8 @@ func HandleGetEventsForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
-	token := oauth.RefreshToken(creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
@@ -112,6 +120,8 @@ func HandleGetEventsForm(c *gin.Context) {
 
 	accessToken := token.AccessToken
 
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+
 	form := &apps.Form{
 		Title: "Create Nextcloud calendar event",
 		Icon:  "icon.png",
@@ -122,7 +132,7 @@ func HandleGetEventsForm(c *gin.Context) {
 				Name:                "calendar",
 				Label:               "Calendar",
 				IsRequired:          true,
-				SelectStaticOptions: GetUserCalendars(reqUrl, accessToken),
+				SelectStaticOptions: calendarService.GetUserCalendars(),
 			},
 		},
 		Submit: apps.NewCall("/get-calendar-events").WithExpand(apps.Expand{
@@ -141,7 +151,8 @@ func HandleGetEvents(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
-	token := oauth.RefreshToken(creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
@@ -159,8 +170,9 @@ func HandleGetEvents(c *gin.Context) {
 		From: from,
 		To:   to,
 	}
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: token.AccessToken}
 
-	events := GetCalendarEvents(eventRange, reqUrl, token.AccessToken)
+	events := calendarService.GetCalendarEvents(eventRange)
 
 	asBot := appclient.AsBot(creq.Context)
 	for _, e := range events {

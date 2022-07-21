@@ -8,7 +8,15 @@ import (
 	ics "github.com/arran4/golang-ical"
 )
 
-func GetCalendarEvent(request WebhookCalendarRequest) (*CalendarEventDto, error) {
+type CalendarWebhookService interface {
+	GetCalendarEvent(request WebhookCalendarRequest) (*CalendarEventDto, error)
+}
+
+type CalenderWebhookServiceImpl struct {
+	request WebhookCalendarRequest
+}
+
+func (c CalenderWebhookServiceImpl) GetCalendarEvent(request WebhookCalendarRequest) (*CalendarEventDto, error) {
 	calendar := getParsedCalendar(request.Values.Data.ObjectData.Calendardata)
 	return getEventUsers(calendar)
 
