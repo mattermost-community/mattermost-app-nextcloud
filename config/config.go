@@ -8,6 +8,7 @@ type Config struct {
 	APPURL       string `mapstructure:"APPURL"`
 	Port         string `mapstructure:"PORT"`
 	STATICFOLDER string `mapstructure:"STATICFOLDER"`
+	APPTYPE      string `mapstructure:"APPTYPE"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

@@ -1,6 +1,7 @@
 package install
 
 import (
+	_ "embed"
 	"encoding/json"
 	"net/http"
 
@@ -10,37 +11,18 @@ import (
 	"github.com/prokhorind/nextcloud/function/oauth"
 )
 
+//go:embed manifest.json
+var manifestSource []byte
+
 func GetManifest(c *gin.Context) {
 
 	configuration := c.MustGet("config").(config.Config)
 
-	manifest := apps.Manifest{
-		AppID:       "nextcloud",
-		Version:     "v1.0.0",
-		DisplayName: "Nextcloud integration app",
-		Icon:        "icon.png",
-		HomepageURL: "https://github.com/mattermost/mattermost-plugin-apps/examples/go/hello-oauth2",
-		RequestedPermissions: []apps.Permission{
-			apps.PermissionActAsUser,
-			apps.PermissionRemoteOAuth2,
-			apps.PermissionActAsBot,
-			apps.PermissionRemoteWebhooks,
-		},
-		RequestedLocations: []apps.Location{
-			apps.LocationCommand,
-			apps.LocationPostMenu,
-		},
-		Bindings: apps.NewCall("/bindings").WithExpand(apps.Expand{
-			ActingUser: apps.ExpandAll,
-			OAuth2User: apps.ExpandAll,
-		}),
+	var manifest apps.Manifest
+	json.Unmarshal(manifestSource, &manifest)
 
-		RemoteWebhookAuthType: apps.NoAuth,
-		Deploy: apps.Deploy{
-			HTTP: &apps.HTTP{
-				RootURL: configuration.APPURL,
-			},
-		},
+	if "HTTP" == configuration.APPTYPE {
+		manifest.HTTP.RootURL = configuration.APPURL
 	}
 
 	c.JSON(http.StatusOK, manifest)
@@ -174,10 +156,11 @@ func Bindings(c *gin.Context) {
 		Label:    "Upload file to Nextcloud",
 		Location: apps.Location("id"),
 		Icon:     "icon.png",
-		Submit: apps.NewCall("/file-upload").WithExpand(apps.Expand{
-			OAuth2App:  apps.ExpandAll,
-			OAuth2User: apps.ExpandAll,
-			Post:       apps.ExpandAll,
+		Submit: apps.NewCall("/file-upload-form").WithExpand(apps.Expand{
+			ActingUserAccessToken: apps.ExpandAll,
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			Post:                  apps.ExpandAll,
 		}),
 	}
 

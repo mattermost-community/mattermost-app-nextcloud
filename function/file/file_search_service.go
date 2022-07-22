@@ -52,6 +52,7 @@ func createSearchRequestBody(userName string, fileName string) string {
 			<d:select>
 				<d:prop>
 					<oc:fileid/>
+					<d:resourcetype/>
 					<d:displayname/>
 					<d:getcontenttype/>
 					<d:getetag/>

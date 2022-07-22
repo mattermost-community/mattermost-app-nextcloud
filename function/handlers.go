@@ -25,8 +25,10 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
 	r.POST("/get-calendar-events-form", calendar.HandleGetEventsForm)
 	r.POST("/get-calendar-events", calendar.HandleGetEvents)
+	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
 	r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
+	r.POST("/folder-search", file.SearchFolders)
 }
 
 func setAppConfig(conf config.Config) gin.HandlerFunc {

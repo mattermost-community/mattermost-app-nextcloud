@@ -1,6 +1,9 @@
 package file
 
-import "encoding/xml"
+import (
+	"encoding/xml"
+	"github.com/mattermost/mattermost-plugin-apps/apps"
+)
 
 type FileSearchResponseBody struct {
 	XMLName      xml.Name       `xml:"multistatus"`
@@ -31,4 +34,8 @@ type property struct {
 	Getetag        string `xml:"getetag"`
 	Size           string `xml:"size"`
 	Displayname    string `xml:"displayname"`
+}
+
+type DynamicSelectResponse struct {
+	Items []apps.SelectOption `json:"items"`
 }
