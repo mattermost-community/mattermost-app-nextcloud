@@ -28,6 +28,8 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
 	r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
+	r.POST("/webhook/calendar-event-updated", calendar.HandleWebhookUpdateEvent)
+
 	r.POST("/folder-search", file.SearchFolders)
 }
 

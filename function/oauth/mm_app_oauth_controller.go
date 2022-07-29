@@ -76,11 +76,12 @@ func Oauth2Complete(c *gin.Context) {
 	defer resp.Body.Close()
 
 	jsonResp := Token{}
-
 	json.NewDecoder(resp.Body).Decode(&jsonResp)
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(jsonResp)
+
+	setupWebhooks(creq, jsonResp.AccessToken)
 
 	c.JSON(http.StatusOK, apps.NewTextResponse("completed oauth"))
 }
@@ -107,4 +108,26 @@ func Disconnect(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.CallResponse{
 		Text: "Disconnected your NextCloud account",
 	})
+}
+
+func setupWebhooks(creq apps.CallRequest, token string) {
+	nextcloudRoot := creq.Context.ExpandedContext.OAuth2.OAuth2App.RemoteRootURL
+	mmSiteUrl := creq.Context.MattermostSiteURL
+	appId := creq.Context.AppID
+
+	webhookUrl := fmt.Sprintf("%s/plugins/com.mattermost.apps/apps/%s/webhook", mmSiteUrl, appId)
+	createEventWebhook := fmt.Sprintf("%s/%s", webhookUrl, "calendar-event-created")
+	updateEventWebhook := fmt.Sprintf("%s/%s", webhookUrl, "calendar-event-updated")
+
+	payload := CreateWebhooksBody{Enabled: true, WebhookSecret: "", CalendarEventCreatedURL: createEventWebhook, CalendarEventUpdatedURL: updateEventWebhook}
+	body, _ := json.Marshal(payload)
+	reqUrl := fmt.Sprintf("%s/index.php/apps/integration_mattermost/webhooks", nextcloudRoot)
+	req, _ := http.NewRequest("POST", reqUrl, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+
 }
