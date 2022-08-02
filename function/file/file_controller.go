@@ -124,6 +124,8 @@ func FileSearch(c *gin.Context) {
 
 	files := resp.FileResponse
 
+	AddBot(creq)
+
 	for _, f := range files {
 		sendFiles(f, &creq)
 	}
@@ -150,6 +152,8 @@ func FileUpload(c *gin.Context) {
 	files := creq.State.([]interface{})
 
 	asBot := appclient.AsBot(creq.Context)
+	AddBot(creq)
+
 	for _, file := range files {
 		f := file.(string)
 
