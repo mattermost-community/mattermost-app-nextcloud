@@ -3,11 +3,11 @@ package install
 import (
 	_ "embed"
 	"encoding/json"
+	"github.com/prokhorind/nextcloud/http-server/config"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
-	"github.com/prokhorind/nextcloud/config"
 	"github.com/prokhorind/nextcloud/function/oauth"
 )
 
@@ -33,6 +33,11 @@ func GetIcon(c *gin.Context) {
 	configuration := c.MustGet("config").(config.Config)
 
 	c.File(configuration.STATICFOLDER + "/icon.png")
+}
+
+func Ping(c *gin.Context) {
+
+	c.JSON(http.StatusOK, apps.NewTextResponse("PONG"))
 }
 
 func Bindings(c *gin.Context) {

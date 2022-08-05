@@ -2,17 +2,13 @@ package function
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/prokhorind/nextcloud/config"
 	"github.com/prokhorind/nextcloud/function/calendar"
 	"github.com/prokhorind/nextcloud/function/file"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
 )
 
-func InitHandlers(r *gin.Engine, conf config.Config) {
-	r.Use(setAppConfig(conf))
-	r.GET("/manifest.json", install.GetManifest)
-	r.GET("/static/icon.png", install.GetIcon)
+func InitHandlers(r *gin.Engine) {
 	r.POST("/bindings", install.Bindings)
 	r.POST("/configure", oauth.Configure)
 	r.POST("/connect", oauth.HandleConnect)
@@ -20,7 +16,7 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("/oauth2/complete", oauth.Oauth2Complete)
 	r.POST("/oauth2/connect", oauth.Oauth2Connect)
 	r.POST("/file/search", file.FileSearch)
-	r.POST("send", file.FileSearch)
+	r.POST("/send", file.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
 	r.POST("/get-calendar-events-form", calendar.HandleGetEventsForm)
@@ -30,12 +26,7 @@ func InitHandlers(r *gin.Engine, conf config.Config) {
 	r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
 	r.POST("/webhook/calendar-event-updated", calendar.HandleWebhookUpdateEvent)
 
+	r.POST("/ping", install.Ping)
 	r.POST("/folder-search", file.SearchFolders)
-}
-
-func setAppConfig(conf config.Config) gin.HandlerFunc {
-
-	return func(ctx *gin.Context) {
-		ctx.Set("config", conf)
-	}
+	r.POST("/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
 }

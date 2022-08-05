@@ -1,7 +1,6 @@
 package calendar
 
 import (
-	"fmt"
 	ics "github.com/arran4/golang-ical"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
@@ -27,7 +26,7 @@ func (c CalendarEventServiceImpl) CreateEventBody() (string, string) {
 
 	asBot := appclient.AsBot(c.creq.Context)
 
-	organizer, _, _ := asBot.GetUsersByIds([]string{organizerId})
+	organizer, _, _ := asBot.GetUser(organizerId, "")
 	users, _, e := asBot.GetUsersByIds(userIds)
 
 	if e != nil {
@@ -46,14 +45,11 @@ func (c CalendarEventServiceImpl) CreateEventBody() (string, string) {
 	event.SetSummary(title)
 	event.SetLocation("Address")
 	event.SetDescription(description)
-	event.AddRrule(fmt.Sprintf("FREQ=YEARLY;BYMONTH=%d;BYMONTHDAY=%d", time.Now().Month(), time.Now().Day()))
-	event.SetOrganizer(organizer[0].Email, ics.WithCN("Owner"))
-
+	event.SetOrganizer(organizer.Email, ics.WithCN("Owner"))
 	for _, u := range users {
 		event.AddAttendee(u.Email, ics.CalendarUserTypeIndividual, ics.ParticipationStatusNeedsAction, ics.ParticipationRoleReqParticipant, ics.WithRSVP(true))
 	}
 	text := cal.Serialize()
-
 	return id, text
 
 }

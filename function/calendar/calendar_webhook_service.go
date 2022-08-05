@@ -17,8 +17,11 @@ type CalenderWebhookServiceImpl struct {
 }
 
 func (c CalenderWebhookServiceImpl) GetCalendarEvent(request WebhookCalendarRequest) (*CalendarEventDto, error) {
+
 	calendar := getParsedCalendar(request.Values.Data.ObjectData.Calendardata)
-	return getEventUsers(calendar)
+	event, err := getEventUsers(calendar)
+	event.CalendarId = request.Values.Data.CalendarData.URI
+	return event, err
 
 }
 
@@ -31,7 +34,6 @@ func getEventUsers(calendar ics.Calendar) (*CalendarEventDto, error) {
 
 	for _, e := range calendar.Events() {
 		event := CalendarEventDto{}
-		attendees := []string{}
 		for _, p := range e.Properties {
 			switch p.IANAToken {
 			case "SUMMARY":
@@ -44,15 +46,12 @@ func getEventUsers(calendar ics.Calendar) (*CalendarEventDto, error) {
 				event.End = p.Value
 			case "DESCRIPTION":
 				event.Description = p.Value
-			case "ATTENDEE":
-				email := strings.Split(p.Value, ":")[1]
-				attendees = append(attendees, email)
 			case "ORGANIZER":
 				event.OrganizerEmail = p.Value
 			}
 			fmt.Println(p.BaseProperty)
 		}
-		event.AttendeeEmails = attendees
+		event.Attendees = e.Attendees()
 		return &event, nil
 	}
 	return nil, errors.New("multiple events created")

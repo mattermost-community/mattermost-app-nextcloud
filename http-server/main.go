@@ -2,12 +2,13 @@ package main
 
 import (
 	"flag"
+	"github.com/prokhorind/nextcloud/function/install"
+	"github.com/prokhorind/nextcloud/http-server/config"
 	"log"
 	"net/url"
 	"os"
 
 	"github.com/gin-gonic/gin"
-	"github.com/prokhorind/nextcloud/config"
 	"github.com/prokhorind/nextcloud/function"
 )
 
@@ -15,7 +16,11 @@ func main() {
 	r := gin.Default()
 
 	configuration := getConfiguration()
-	function.InitHandlers(r, configuration)
+	function.InitHandlers(r)
+	r.Use(setAppConfig(configuration))
+
+	r.GET("/manifest.json", install.GetManifest)
+	r.GET("/static/icon.png", install.GetIcon)
 
 	portStr := getPort(configuration)
 	r.Run(":" + portStr)
@@ -23,7 +28,7 @@ func main() {
 }
 
 func getConfiguration() config.Config {
-	cpath := getEnv("CONFIGPATH", "../config")
+	cpath := getEnv("CONFIGPATH", "config")
 	flag.Parse()
 
 	configuration, err := config.LoadConfig(cpath)
@@ -54,4 +59,11 @@ func getEnv(key, fallback string) string {
 		value = fallback
 	}
 	return value
+}
+
+func setAppConfig(conf config.Config) gin.HandlerFunc {
+
+	return func(ctx *gin.Context) {
+		ctx.Set("config", conf)
+	}
 }

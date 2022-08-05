@@ -1,6 +1,7 @@
 package calendar
 
 import (
+	ics "github.com/arran4/golang-ical"
 	"time"
 
 	"github.com/mattermost/mattermost-plugin-apps/apps"
@@ -77,13 +78,14 @@ type AppBindingsEmbeddedMessage struct {
 }
 
 type CalendarEventDto struct {
-	ID             string   `json:"id"`
-	Summary        string   `json:"summary"`
-	Description    string   `json:"description"`
-	Start          string   `json:"start_date"`
-	End            string   `json:"end_date"`
-	OrganizerEmail string   `json:"organizer"`
-	AttendeeEmails []string `json:"attendees"`
+	CalendarId     string          `json:"calendar_id"`
+	ID             string          `json:"id"`
+	Summary        string          `json:"summary"`
+	Description    string          `json:"description"`
+	Start          string          `json:"start_date"`
+	End            string          `json:"end_date"`
+	OrganizerEmail string          `json:"organizer"`
+	Attendees      []*ics.Attendee `json:"attendees"`
 }
 
 func (e CalendarEventDto) GetFormattedStartDate(outputFormat string) string {

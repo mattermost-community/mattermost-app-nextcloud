@@ -29,8 +29,8 @@
     "functions": [
       {
         "path": "/",
-        "name": "go-function",
-        "handler": "mattermost-app-nextcloud",
+        "name": "nextcloud",
+        "handler": "nextcloud",
         "runtime": "go1.x"
       }
     ]

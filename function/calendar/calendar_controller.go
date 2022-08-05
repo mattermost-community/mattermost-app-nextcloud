@@ -3,7 +3,9 @@ package calendar
 import (
 	"encoding/json"
 	"fmt"
+	ics "github.com/arran4/golang-ical"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -186,4 +188,34 @@ func HandleGetEvents(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, apps.NewDataResponse(nil))
+}
+
+func HandleChangeEventStatus(c *gin.Context) {
+	creq := apps.CallRequest{}
+	json.NewDecoder(c.Request.Body).Decode(&creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
+	accessToken := token.AccessToken
+	asActingUser := appclient.AsActingUser(creq.Context)
+	asActingUser.StoreOAuth2User(token)
+
+	user, _, _ := asActingUser.GetUser(creq.Context.ActingUser.Id, "")
+
+	eventId := c.Param("eventId")
+	status := strings.ToUpper(c.Param("status"))
+	calendarId := c.Param("calendarId")
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
+	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
+	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, calendarId, eventId)
+
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+
+	eventIcs := calendarService.GetCalendarEvent(calendarId, eventId)
+
+	cal, _ := ics.ParseCalendar(strings.NewReader(eventIcs))
+
+	body := calendarService.UpdateAttendeeStatus(cal, user, status)
+	calendarService.CreateEvent(body)
+	c.JSON(http.StatusOK, apps.NewTextResponse("event status updated:"+status))
+
 }

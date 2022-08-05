@@ -3,7 +3,10 @@ package calendar
 import (
 	"encoding/xml"
 	"fmt"
+	ics "github.com/arran4/golang-ical"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
+	"github.com/mattermost/mattermost-server/v6/model"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -128,4 +131,29 @@ func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) 
 
 	return xmlResp
 
+}
+
+func (c CalendarServiceImpl) GetCalendarEvent(calendarId string, eventId string) string {
+	req, _ := http.NewRequest("GET", c.Url, nil)
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+
+	event, _ := io.ReadAll(resp.Body)
+
+	return string(event)
+}
+
+func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) string {
+	for _, e := range cal.Events() {
+		for _, a := range e.Attendees() {
+			if user.Email == a.Email() {
+				a.ICalParameters["PARTSTAT"] = []string{status}
+				break
+			}
+		}
+	}
+	return cal.Serialize()
 }
