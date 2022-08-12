@@ -3,8 +3,8 @@ package install
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/prokhorind/nextcloud/http-server/config"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
@@ -15,24 +15,16 @@ import (
 var manifestSource []byte
 
 func GetManifest(c *gin.Context) {
-
-	configuration := c.MustGet("config").(config.Config)
-
+	appType := os.Getenv("APP_TYPE")
 	var manifest apps.Manifest
 	json.Unmarshal(manifestSource, &manifest)
 
-	if "HTTP" == configuration.APPTYPE {
-		manifest.HTTP.RootURL = configuration.APPURL
+	if "HTTP" == appType {
+		manifest.HTTP.RootURL = os.Getenv("APP_URL")
 	}
 
 	c.JSON(http.StatusOK, manifest)
 
-}
-
-func GetIcon(c *gin.Context) {
-	configuration := c.MustGet("config").(config.Config)
-
-	c.File(configuration.STATICFOLDER + "/icon.png")
 }
 
 func Ping(c *gin.Context) {

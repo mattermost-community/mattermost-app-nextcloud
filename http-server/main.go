@@ -1,10 +1,8 @@
 package main
 
 import (
-	"flag"
 	"github.com/prokhorind/nextcloud/function/install"
-	"github.com/prokhorind/nextcloud/http-server/config"
-	"log"
+	"net/http"
 	"net/url"
 	"os"
 
@@ -15,35 +13,24 @@ import (
 func main() {
 	r := gin.Default()
 
-	configuration := getConfiguration()
+	r.StaticFS("/static/", http.Dir(os.Getenv("STATIC_FOLDER")))
+
 	function.InitHandlers(r)
-	r.Use(setAppConfig(configuration))
 
 	r.GET("/manifest.json", install.GetManifest)
-	r.GET("/static/icon.png", install.GetIcon)
 
-	portStr := getPort(configuration)
-	r.Run(":" + portStr)
+	port := getPort()
+
+	r.Run(":" + port)
 
 }
 
-func getConfiguration() config.Config {
-	cpath := getEnv("CONFIGPATH", "config")
-	flag.Parse()
+func getPort() string {
 
-	configuration, err := config.LoadConfig(cpath)
-	if err != nil {
-		log.Fatal("cannot load config:", err)
-	}
-	return configuration
-}
-
-func getPort(configuration config.Config) string {
-
-	portStr := configuration.Port
+	portStr := os.Getenv("PORT")
 
 	if portStr == "" {
-		u, err := url.Parse(configuration.APPURL)
+		u, err := url.Parse(getEnv("APP_URL", "http://localhost:8082"))
 		if err != nil {
 			panic(err)
 		}
@@ -59,11 +46,4 @@ func getEnv(key, fallback string) string {
 		value = fallback
 	}
 	return value
-}
-
-func setAppConfig(conf config.Config) gin.HandlerFunc {
-
-	return func(ctx *gin.Context) {
-		ctx.Set("config", conf)
-	}
 }
