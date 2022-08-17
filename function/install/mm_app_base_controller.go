@@ -100,6 +100,29 @@ func Bindings(c *gin.Context) {
 			},
 
 			apps.Binding{
+				Location: "not-disturb",
+				Label:    "not-disturb",
+				Form: &apps.Form{
+					Title: "Configures NextCloud client not disturb mode",
+					Icon:  "icon.png",
+					Fields: []apps.Field{
+						{
+							Type:       "bool",
+							Name:       "enabled",
+							Label:      "Enabled",
+							IsRequired: true,
+						},
+					},
+					Submit: apps.NewCall("/not-disturb").WithExpand(apps.Expand{
+						ActingUserAccessToken: apps.ExpandAll,
+						OAuth2App:             apps.ExpandAll,
+						OAuth2User:            apps.ExpandAll,
+						Channel:               apps.ExpandAll,
+					}),
+				},
+			},
+
+			apps.Binding{
 				Location: "get-calendar-events",
 				Label:    "get-calendar-events",
 

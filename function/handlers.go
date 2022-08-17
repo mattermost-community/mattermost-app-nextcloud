@@ -6,6 +6,7 @@ import (
 	"github.com/prokhorind/nextcloud/function/file"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
+	"github.com/prokhorind/nextcloud/function/user"
 )
 
 func InitHandlers(r *gin.Engine) {
@@ -29,4 +30,6 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/ping", install.Ping)
 	r.POST("/folder-search", file.SearchFolders)
 	r.POST("/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
+
+	r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 }
