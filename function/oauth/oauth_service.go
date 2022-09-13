@@ -51,7 +51,8 @@ func (s OauthServiceImpl) RefreshToken() Token {
 func ConfigureWebhooks(creq apps.CallRequest, token string, status bool) {
 	nextcloudRoot := creq.Context.ExpandedContext.OAuth2.OAuth2App.RemoteRootURL
 	mmSiteUrl := creq.Context.MattermostSiteURL
-	appId := creq.Context.AppID
+	//appId := creq.Context.AppID
+	appId := "nextcloud"
 
 	webhookUrl := fmt.Sprintf("%s/plugins/com.mattermost.apps/apps/%s/webhook", mmSiteUrl, appId)
 	createEventWebhook := fmt.Sprintf("%s/%s", webhookUrl, "calendar-event-created")

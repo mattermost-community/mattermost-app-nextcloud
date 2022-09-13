@@ -87,6 +87,7 @@ func Bindings(c *gin.Context) {
 				Label:    "disconnect",
 				Submit: apps.NewCall("/disconnect").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
 				}),
 			},
 			apps.Binding{
