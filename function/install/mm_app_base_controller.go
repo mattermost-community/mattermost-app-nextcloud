@@ -54,6 +54,7 @@ func Bindings(c *gin.Context) {
 				OAuth2App:             apps.ExpandAll,
 				OAuth2User:            apps.ExpandAll,
 				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
 			}),
 		})
 	} else {
@@ -77,6 +78,7 @@ func Bindings(c *gin.Context) {
 						OAuth2User:            apps.ExpandAll,
 						Channel:               apps.ExpandAll,
 						ActingUserAccessToken: apps.ExpandAll,
+						ActingUser:            apps.ExpandAll,
 					}),
 				},
 			},
@@ -96,6 +98,7 @@ func Bindings(c *gin.Context) {
 					OAuth2App:             apps.ExpandAll,
 					OAuth2User:            apps.ExpandAll,
 					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
 				}),
 			},
 
@@ -118,6 +121,7 @@ func Bindings(c *gin.Context) {
 						OAuth2App:             apps.ExpandAll,
 						OAuth2User:            apps.ExpandAll,
 						Channel:               apps.ExpandAll,
+						ActingUser:            apps.ExpandAll,
 					}),
 				},
 			},
@@ -131,6 +135,7 @@ func Bindings(c *gin.Context) {
 					OAuth2App:             apps.ExpandAll,
 					OAuth2User:            apps.ExpandAll,
 					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
 				}),
 			},
 		)
@@ -166,6 +171,7 @@ func Bindings(c *gin.Context) {
 				},
 				Submit: apps.NewCall("/configure").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
 				}),
 			},
 		}
@@ -181,6 +187,7 @@ func Bindings(c *gin.Context) {
 			OAuth2App:             apps.ExpandAll,
 			OAuth2User:            apps.ExpandAll,
 			Post:                  apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
 		}),
 	}
 
