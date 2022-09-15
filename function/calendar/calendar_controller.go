@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	ics "github.com/arran4/golang-ical"
+	"github.com/prokhorind/nextcloud/function/user"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -220,4 +222,72 @@ func HandleChangeEventStatus(c *gin.Context) {
 	calendarService.CreateEvent(body)
 	c.JSON(http.StatusOK, apps.NewTextResponse("event status updated:"+status))
 
+}
+
+func HandleGetUserCalendars(c *gin.Context) {
+	creq := apps.CallRequest{}
+	json.NewDecoder(c.Request.Body).Decode(&creq)
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
+	accessToken := token.AccessToken
+	asActingUser := appclient.AsActingUser(creq.Context)
+	asActingUser.StoreOAuth2User(token)
+
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
+	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
+
+	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s", remoteUrl, userId)
+
+	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+
+	userCalendars := calendarService.GetUserCalendars()
+
+	asBot := appclient.AsBot(creq.Context)
+	userSettingsService := user.UserSettingsServiceImpl{asBot}
+
+	for i, c := range userCalendars {
+		us := userSettingsService.GetUserSettingsById(creq.Context.ActingUser.Id)
+		post := createCalendarPost(i, c, us.Contains(c.Value))
+		asBot.DMPost(creq.Context.ActingUser.Id, post)
+	}
+
+	c.JSON(http.StatusOK, apps.NewTextResponse("send calendars to DM:"))
+
+}
+
+func createCalendarPost(i int, option apps.SelectOption, disabled bool) *model.Post {
+	post := model.Post{}
+	commandBinding := apps.Binding{
+		Location:    "embedded",
+		AppID:       "nextcloud",
+		Label:       strconv.Itoa(i),
+		Description: option.Label,
+		Bindings:    []apps.Binding{},
+	}
+	if disabled {
+		createDoNotDisturbButton(&commandBinding, option, "Enable", "Enable notifications")
+
+	} else {
+		createDoNotDisturbButton(&commandBinding, option, "Disable", "Disable notifications")
+	}
+
+	m1 := make(map[string]interface{})
+	m1["app_bindings"] = []apps.Binding{commandBinding}
+
+	post.SetProps(m1)
+	return &post
+
+}
+
+func createDoNotDisturbButton(commandBinding *apps.Binding, option apps.SelectOption, location apps.Location, label string) {
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: location,
+		Label:    label,
+		Submit: apps.NewCall(fmt.Sprintf("/calendars/%s/status/%s", option.Value, location)).WithExpand(apps.Expand{
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			ActingUserAccessToken: apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}),
+	})
 }

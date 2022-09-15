@@ -8,6 +8,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/mattermost/mattermost-server/v6/model"
+	"github.com/prokhorind/nextcloud/function/user"
 )
 
 func HandleWebhookCreateEvent(c *gin.Context) {
@@ -19,9 +20,14 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 	event, _ := calendarWebhookService.GetCalendarEvent(creq)
 
 	asBot := appclient.AsBot(creq.Context)
+	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
 	for _, a := range event.Attendees {
 		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
+		userSettings := userSettingsService.GetUserSettingsById(u.Id)
+		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
+			continue
+		}
 		post := createPostWithBindings(event, a, "New event")
 		asBot.DMPost(u.Id, post)
 	}
@@ -37,8 +43,14 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 
 	asBot := appclient.AsBot(creq.Context)
 
+	userSettingsService := user.UserSettingsServiceImpl{asBot}
+
 	for _, a := range event.Attendees {
 		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
+		userSettings := userSettingsService.GetUserSettingsById(u.Id)
+		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
+			continue
+		}
 		post := createPostWithBindings(event, a, "Updated event")
 		asBot.DMPost(u.Id, post)
 	}
@@ -70,6 +82,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 				OAuth2App:             apps.ExpandAll,
 				OAuth2User:            apps.ExpandAll,
 				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
 			}),
 		})
 	}
@@ -82,6 +95,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 				OAuth2App:             apps.ExpandAll,
 				OAuth2User:            apps.ExpandAll,
 				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
 			}),
 		})
 	}
@@ -94,6 +108,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 				OAuth2App:             apps.ExpandAll,
 				OAuth2User:            apps.ExpandAll,
 				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
 			}),
 		})
 	}

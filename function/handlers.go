@@ -29,7 +29,9 @@ func InitHandlers(r *gin.Engine) {
 
 	r.POST("/ping", install.Ping)
 	r.POST("/folder-search", file.SearchFolders)
+	r.POST("/calendars", calendar.HandleGetUserCalendars)
 	r.POST("/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
+	r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
 
 	r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 }
