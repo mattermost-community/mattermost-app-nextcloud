@@ -62,6 +62,7 @@ func HandleCreateEventForm(c *gin.Context) {
 	accessToken := token.AccessToken
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	option := creq.State.(map[string]interface{})
 
 	form := &apps.Form{
 		Title: "Create Nextcloud calendar event",
@@ -94,6 +95,7 @@ func HandleCreateEventForm(c *gin.Context) {
 				Label:               "Calendar",
 				IsRequired:          true,
 				SelectStaticOptions: calendarService.GetUserCalendars(),
+				Value:               apps.SelectOption{Label: option["label"].(string), Value: option["value"].(string)},
 			},
 		},
 		Submit: apps.NewCall("/create-calendar-event").WithExpand(apps.Expand{
@@ -108,7 +110,7 @@ func HandleCreateEventForm(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
 }
 
-func HandleGetEventsForm(c *gin.Context) {
+func HandleGetCalendarEventsForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
@@ -127,8 +129,9 @@ func HandleGetEventsForm(c *gin.Context) {
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 
+	option := creq.State.(map[string]interface{})
 	form := &apps.Form{
-		Title: "Create Nextcloud calendar event",
+		Title: "Nextcloud calendar events",
 		Icon:  "icon.png",
 		Fields: []apps.Field{
 
@@ -138,6 +141,7 @@ func HandleGetEventsForm(c *gin.Context) {
 				Label:               "Calendar",
 				IsRequired:          true,
 				SelectStaticOptions: calendarService.GetUserCalendars(),
+				Value:               apps.SelectOption{Label: option["label"].(string), Value: option["value"].(string)},
 			},
 		},
 		Submit: apps.NewCall("/get-calendar-events").WithExpand(apps.Expand{
@@ -260,10 +264,13 @@ func createCalendarPost(i int, option apps.SelectOption, disabled bool) *model.P
 	commandBinding := apps.Binding{
 		Location:    "embedded",
 		AppID:       "nextcloud",
-		Label:       strconv.Itoa(i),
+		Label:       "Calendar " + strconv.Itoa(i),
 		Description: option.Label,
 		Bindings:    []apps.Binding{},
 	}
+
+	createCalendarEventsButton(&commandBinding, option, "Calendar", "Create calendar event")
+	createGetCalendarEventsButton(&commandBinding, option, "Calendar", "Calendar events")
 	if disabled {
 		createDoNotDisturbButton(&commandBinding, option, "Enable", "Enable notifications")
 
@@ -289,5 +296,31 @@ func createDoNotDisturbButton(commandBinding *apps.Binding, option apps.SelectOp
 			ActingUserAccessToken: apps.ExpandAll,
 			ActingUser:            apps.ExpandAll,
 		}),
+	})
+}
+
+func createGetCalendarEventsButton(commandBinding *apps.Binding, option apps.SelectOption, location apps.Location, label string) {
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: location,
+		Label:    label,
+		Submit: apps.NewCall("/get-calendar-events-form").WithExpand(apps.Expand{
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			ActingUserAccessToken: apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}).WithState(option),
+	})
+}
+
+func createCalendarEventsButton(commandBinding *apps.Binding, option apps.SelectOption, location apps.Location, label string) {
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: location,
+		Label:    label,
+		Submit: apps.NewCall("/create-calendar-event-form").WithExpand(apps.Expand{
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			ActingUserAccessToken: apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}).WithState(option),
 	})
 }

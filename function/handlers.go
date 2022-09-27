@@ -20,7 +20,8 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/send", file.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
-	r.POST("/get-calendar-events-form", calendar.HandleGetEventsForm)
+	r.POST("/get-calendar-events-form", calendar.HandleGetCalendarEventsForm)
+
 	r.POST("/get-calendar-events", calendar.HandleGetEvents)
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
