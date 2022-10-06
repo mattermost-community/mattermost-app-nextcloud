@@ -170,7 +170,6 @@ func HandleGetEvents(c *gin.Context) {
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	calendar := creq.Values["calendar"].(map[string]interface{})["value"].(string)
-
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s", remoteUrl, userId, calendar)
 
 	now := time.Now()
@@ -183,19 +182,95 @@ func HandleGetEvents(c *gin.Context) {
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: token.AccessToken}
 
 	events := calendarService.GetCalendarEvents(eventRange)
+	calEvents := make([]ics.Calendar, len(events))
+	for i := 0; i < len(events); i++ {
+		cal, _ := ics.ParseCalendar(strings.NewReader(events[i]))
+		calEvents[i] = *cal
+	}
 
 	asBot := appclient.AsBot(creq.Context)
-	for _, e := range events {
-
-		post := model.Post{
-			Message:   e,
-			ChannelId: creq.Context.Channel.Id,
-		}
-		asBot.CreatePost(&post)
-
+	status := findAttendeeStatus(asBot, *calEvents[0].Events()[0], creq.Context.ActingUser.Id)
+	mmUserId := creq.Context.ActingUser.Id
+	for _, e := range calEvents {
+		post := createCalendarEventPost(e.Events()[0], status, calendar)
+		asBot.DMPost(mmUserId, post)
 	}
 
 	c.JSON(http.StatusOK, apps.NewDataResponse(nil))
+}
+
+func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId string) ics.ParticipationStatus {
+	user, _, _ := client.GetUser(userId, "")
+	for _, a := range event.Attendees() {
+		if user.Email == a.Email() {
+			return a.ParticipationStatus()
+		}
+	}
+	return ""
+}
+
+func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string) *model.Post {
+	var name, attendees, start, finish, description, organizer, id string
+	attendees = ""
+	for _, e := range event.Properties {
+		if e.BaseProperty.IANAToken == "UID" {
+			id = e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "DESCRIPTION" {
+			description = e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "ORGANIZER" {
+			organizer = e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "ATTENDEE" {
+			attendees = attendees + " " + e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "SUMMARY" {
+			name = e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "DTSTART" {
+			start = e.BaseProperty.Value
+		}
+		if e.BaseProperty.IANAToken == "DTEND" {
+			finish = e.BaseProperty.Value
+		}
+	}
+	post := model.Post{}
+	commandBinding := apps.Binding{
+		Location:    "embedded",
+		AppID:       "nextcloud",
+		Label:       "Event " + name,
+		Description: createDescriptionForEvent(description, start, finish, organizer, attendees),
+		Bindings:    []apps.Binding{},
+	}
+	calendarService := CalendarServiceImpl{}
+	path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, id)
+	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
+	createDeleteButton(&commandBinding, "Delete", "Delete")
+
+	m1 := make(map[string]interface{})
+	m1["app_bindings"] = []apps.Binding{commandBinding}
+
+	post.SetProps(m1)
+
+	return &post
+}
+
+func createDescriptionForEvent(description string, start string, finish string, organizer string, attendees string) string {
+	return fmt.Sprintf("Description %s. Organized by %s. Attendies: %s. Start date: %s, End date: %s", description, organizer, attendees, start, finish)
+}
+
+func createDeleteButton(commandBinding *apps.Binding, location apps.Location, label string) {
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: location,
+		Label:    label,
+		Submit: apps.NewCall("/todo").WithExpand(apps.Expand{
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			ActingUserAccessToken: apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}),
+	})
 }
 
 func HandleChangeEventStatus(c *gin.Context) {

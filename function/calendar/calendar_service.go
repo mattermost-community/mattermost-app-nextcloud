@@ -20,6 +20,7 @@ type CalendarService interface {
 	CreateEvent(body string)
 	GetUserCalendars() []apps.SelectOption
 	GetCalendarEvents(event CalendarEventRequestRange) []string
+	AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding
 }
 
 type CalendarServiceImpl struct {
@@ -156,4 +157,46 @@ func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model
 		}
 	}
 	return cal.Serialize()
+}
+
+func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding {
+	if status != "ACCEPTED" {
+		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+			Location: "Accept",
+			Label:    "Accept",
+			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "accepted")).WithExpand(apps.Expand{
+				OAuth2App:             apps.ExpandAll,
+				OAuth2User:            apps.ExpandAll,
+				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
+			}),
+		})
+	}
+
+	if status != "DECLINED" {
+		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+			Location: "Decline",
+			Label:    "Decline",
+			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "declined")).WithExpand(apps.Expand{
+				OAuth2App:             apps.ExpandAll,
+				OAuth2User:            apps.ExpandAll,
+				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
+			}),
+		})
+	}
+
+	if status != "TENTATIVE" {
+		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+			Location: "Tentative",
+			Label:    "Tentative",
+			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "tentative")).WithExpand(apps.Expand{
+				OAuth2App:             apps.ExpandAll,
+				OAuth2User:            apps.ExpandAll,
+				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
+			}),
+		})
+	}
+	return commandBinding
 }

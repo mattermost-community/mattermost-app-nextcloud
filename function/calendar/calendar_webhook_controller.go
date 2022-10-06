@@ -65,7 +65,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 	end := event.GetFormattedEndDate("Jan _2 15:04:05")
 	status := attendee.ParticipationStatus()
 	path := fmt.Sprintf("/calendars/%s/events/%s/status", event.CalendarId, event.ID)
-
+	calendarService := CalendarServiceImpl{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
 		AppID:       "nextcloud",
@@ -73,46 +73,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 		Description: event.Description,
 		Bindings:    []apps.Binding{},
 	}
-
-	if status != "ACCEPTED" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-			Location: "Accept",
-			Label:    "Accept",
-			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "accepted")).WithExpand(apps.Expand{
-				OAuth2App:             apps.ExpandAll,
-				OAuth2User:            apps.ExpandAll,
-				ActingUserAccessToken: apps.ExpandAll,
-				ActingUser:            apps.ExpandAll,
-			}),
-		})
-	}
-
-	if status != "DECLINED" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-			Location: "Decline",
-			Label:    "Decline",
-			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "declined")).WithExpand(apps.Expand{
-				OAuth2App:             apps.ExpandAll,
-				OAuth2User:            apps.ExpandAll,
-				ActingUserAccessToken: apps.ExpandAll,
-				ActingUser:            apps.ExpandAll,
-			}),
-		})
-	}
-
-	if status != "TENTATIVE" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-			Location: "Tentative",
-			Label:    "Tentative",
-			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "tentative")).WithExpand(apps.Expand{
-				OAuth2App:             apps.ExpandAll,
-				OAuth2User:            apps.ExpandAll,
-				ActingUserAccessToken: apps.ExpandAll,
-				ActingUser:            apps.ExpandAll,
-			}),
-		})
-	}
-
+	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
