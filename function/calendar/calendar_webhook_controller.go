@@ -24,6 +24,9 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 
 	for _, a := range event.Attendees {
 		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
+		if u == nil {
+			continue
+		}
 		userSettings := userSettingsService.GetUserSettingsById(u.Id)
 		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
 			continue
@@ -47,6 +50,9 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 
 	for _, a := range event.Attendees {
 		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
+		if u == nil {
+			continue
+		}
 		userSettings := userSettingsService.GetUserSettingsById(u.Id)
 		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
 			continue
