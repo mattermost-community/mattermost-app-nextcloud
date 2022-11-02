@@ -7,7 +7,6 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -95,16 +94,6 @@ func (c CalendarServiceImpl) deleteUserEvent(url string, token string) {
 	resp, _ := client.Do(req)
 
 	defer resp.Body.Close()
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	// Display Results
-	fmt.Println("response Status : ", resp.Status)
-	fmt.Println("response Headers : ", resp.Header)
-	fmt.Println("response Body : ", string(respBody))
 }
 
 func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string) {
