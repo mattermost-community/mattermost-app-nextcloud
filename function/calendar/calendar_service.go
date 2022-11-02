@@ -86,15 +86,31 @@ func (c CalendarServiceImpl) getUserCalendars() UserCalendarsResponse {
 	return xmlResp
 }
 
-func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) []string {
+func (c CalendarServiceImpl) deleteUserEvent(url string, token string) {
+	req, _ := http.NewRequest("DELETE", url, nil)
+	client := &http.Client{}
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := client.Do(req)
+
+	defer resp.Body.Close()
+}
+
+func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string) {
 
 	resp := c.getCalendarEvents(event)
 	events := make([]string, 0)
+	eventsIds := make([]string, 0)
 
 	for _, r := range resp.Response {
 		events = append(events, r.Propstat.Prop.CalendarData)
+		eventsIds = append(eventsIds, getEventUrlByResponse(r.Href))
 	}
-	return events
+	return events, eventsIds
+}
+
+func getEventUrlByResponse(href string) string {
+	return strings.Split(strings.Split(href, "/")[6], ".")[0]
 }
 
 func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) UserCalendarEventsResponse {
