@@ -199,6 +199,9 @@ func HandleGetEvents(c *gin.Context) {
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: token.AccessToken}
 
 	events, eventIds := calendarService.GetCalendarEvents(eventRange)
+	if len(events) == 0 {
+		c.JSON(http.StatusOK, apps.NewTextResponse("You do not have events in this calendar"))
+	}
 	calEvents := make([]ics.Calendar, len(events))
 
 	for i := 0; i < len(events); i++ {
