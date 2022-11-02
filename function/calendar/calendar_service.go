@@ -7,6 +7,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"strings"
 )
@@ -86,15 +87,41 @@ func (c CalendarServiceImpl) getUserCalendars() UserCalendarsResponse {
 	return xmlResp
 }
 
-func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) []string {
+func (c CalendarServiceImpl) deleteUserEvent(url string, token string) {
+	req, _ := http.NewRequest("DELETE", url, nil)
+	client := &http.Client{}
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := client.Do(req)
+
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	// Display Results
+	fmt.Println("response Status : ", resp.Status)
+	fmt.Println("response Headers : ", resp.Header)
+	fmt.Println("response Body : ", string(respBody))
+}
+
+func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string) {
 
 	resp := c.getCalendarEvents(event)
 	events := make([]string, 0)
+	eventsIds := make([]string, 0)
 
 	for _, r := range resp.Response {
 		events = append(events, r.Propstat.Prop.CalendarData)
+		eventsIds = append(eventsIds, getEventUrlByResponse(r.Href))
 	}
-	return events
+	return events, eventsIds
+}
+
+func getEventUrlByResponse(href string) string {
+	return strings.Split(strings.Split(href, "/")[6], ".")[0]
 }
 
 func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) UserCalendarEventsResponse {

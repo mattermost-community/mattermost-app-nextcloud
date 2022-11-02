@@ -28,7 +28,7 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
 			continue
 		}
-		post := createPostWithBindings(event, a, "New event")
+		post := createPostWithBindings(event, a, "New event", u.Email)
 		asBot.DMPost(u.Id, post)
 	}
 }
@@ -51,12 +51,12 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
 			continue
 		}
-		post := createPostWithBindings(event, a, "Updated event")
+		post := createPostWithBindings(event, a, "Updated event", u.Email)
 		asBot.DMPost(u.Id, post)
 	}
 }
 
-func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, message string) *model.Post {
+func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, message string, orginizerEmail string) *model.Post {
 
 	post := model.Post{
 		Message: message,
@@ -74,6 +74,11 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 		Bindings:    []apps.Binding{},
 	}
 	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
+
+	if event.OrganizerEmail == orginizerEmail {
+		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", event.CalendarId, event.ID)
+		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
+	}
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 

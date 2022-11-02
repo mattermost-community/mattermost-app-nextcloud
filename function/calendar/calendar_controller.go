@@ -110,6 +110,23 @@ func HandleCreateEventForm(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
 }
 
+func HandleDeleteCalendarEvent(c *gin.Context) {
+	creq := apps.CallRequest{}
+	json.NewDecoder(c.Request.Body).Decode(&creq)
+	calendarService := CalendarServiceImpl{}
+	calendarId := c.Param("calendarId")
+	eventId := c.Param("eventId")
+	oauthService := oauth.OauthServiceImpl{creq}
+	token := oauthService.RefreshToken()
+	asActingUser := appclient.AsActingUser(creq.Context)
+	asActingUser.StoreOAuth2User(token)
+	user := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
+	deleteUrl := fmt.Sprintf("http://localhost:8081/remote.php/dav/calendars/%s/%s/%s.ics", user, calendarId, eventId)
+
+	calendarService.deleteUserEvent(deleteUrl, token.AccessToken)
+	c.JSON(http.StatusOK, apps.NewTextResponse("event deleted :"+eventId))
+}
+
 func HandleGetCalendarEventsForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
@@ -181,8 +198,9 @@ func HandleGetEvents(c *gin.Context) {
 	}
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: token.AccessToken}
 
-	events := calendarService.GetCalendarEvents(eventRange)
+	events, eventIds := calendarService.GetCalendarEvents(eventRange)
 	calEvents := make([]ics.Calendar, len(events))
+
 	for i := 0; i < len(events); i++ {
 		cal, _ := ics.ParseCalendar(strings.NewReader(events[i]))
 		calEvents[i] = *cal
@@ -191,8 +209,9 @@ func HandleGetEvents(c *gin.Context) {
 	asBot := appclient.AsBot(creq.Context)
 	status := findAttendeeStatus(asBot, *calEvents[0].Events()[0], creq.Context.ActingUser.Id)
 	mmUserId := creq.Context.ActingUser.Id
-	for _, e := range calEvents {
-		post := createCalendarEventPost(e.Events()[0], status, calendar)
+	organizerEmail := creq.Context.ActingUser.Email
+	for i, e := range calEvents {
+		post := createCalendarEventPost(e.Events()[0], status, calendar, organizerEmail, eventIds[i])
 		asBot.DMPost(mmUserId, post)
 	}
 
@@ -209,13 +228,10 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 	return ""
 }
 
-func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string) *model.Post {
-	var name, attendees, start, finish, description, organizer, id string
+func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string) *model.Post {
+	var name, attendees, start, finish, description, organizer string
 	attendees = ""
 	for _, e := range event.Properties {
-		if e.BaseProperty.IANAToken == "UID" {
-			id = e.BaseProperty.Value
-		}
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
 			description = e.BaseProperty.Value
 		}
@@ -244,10 +260,15 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		Bindings:    []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
-	path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, id)
+	path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, eventId)
 	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
-	createDeleteButton(&commandBinding, "Delete", "Delete")
-
+	if strings.Contains(organizer, ":") {
+		organizer = strings.Split(organizer, ":")[1]
+	}
+	if organizerEmail == organizer {
+		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", calendarId, eventId)
+		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
+	}
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
@@ -260,16 +281,18 @@ func createDescriptionForEvent(description string, start string, finish string, 
 	return fmt.Sprintf("Description %s. Organized by %s. Attendies: %s. Start date: %s, End date: %s", description, organizer, attendees, start, finish)
 }
 
-func createDeleteButton(commandBinding *apps.Binding, location apps.Location, label string) {
+func createDeleteButton(commandBinding *apps.Binding, location apps.Location, label string, deletePath string) {
+	expand := apps.Expand{
+		OAuth2App:             apps.ExpandAll,
+		OAuth2User:            apps.ExpandAll,
+		ActingUserAccessToken: apps.ExpandAll,
+		ActingUser:            apps.ExpandAll,
+	}
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+
 		Location: location,
 		Label:    label,
-		Submit: apps.NewCall("/todo").WithExpand(apps.Expand{
-			OAuth2App:             apps.ExpandAll,
-			OAuth2User:            apps.ExpandAll,
-			ActingUserAccessToken: apps.ExpandAll,
-			ActingUser:            apps.ExpandAll,
-		}),
+		Submit:   apps.NewCall(deletePath).WithExpand(expand),
 	})
 }
 
