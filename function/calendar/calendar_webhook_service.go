@@ -21,6 +21,7 @@ func (c CalenderWebhookServiceImpl) GetCalendarEvent(request WebhookCalendarRequ
 	calendar := getParsedCalendar(request.Values.Data.ObjectData.Calendardata)
 	event, err := getEventUsers(calendar)
 	event.CalendarId = request.Values.Data.CalendarData.URI
+	event.ID = request.Values.Data.ObjectData.URI
 	return event, err
 
 }
@@ -38,8 +39,6 @@ func getEventUsers(calendar ics.Calendar) (*CalendarEventDto, error) {
 			switch p.IANAToken {
 			case "SUMMARY":
 				event.Summary = p.Value
-			case "UID":
-				event.ID = p.Value
 			case "DTSTART":
 				event.Start = p.Value
 			case "DTEND":

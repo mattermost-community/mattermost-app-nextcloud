@@ -232,7 +232,7 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 }
 
 func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string) *model.Post {
-	var name, attendees, start, finish, description, organizer string
+	var name, attendees, start, finish, description, organizer, eventStatus string
 	attendees = ""
 	for _, e := range event.Properties {
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
@@ -253,6 +253,9 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		if e.BaseProperty.IANAToken == "DTEND" {
 			finish = e.BaseProperty.Value
 		}
+		if e.BaseProperty.IANAToken == "STATUS" {
+			eventStatus = e.BaseProperty.Value
+		}
 	}
 	post := model.Post{}
 	commandBinding := apps.Binding{
@@ -263,15 +266,32 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		Bindings:    []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
-	path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, eventId)
-	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
+
+	if eventStatus == "CANCELLED" {
+		commandBinding.Label = fmt.Sprintf("~~%s~~", commandBinding.Label)
+		commandBinding.Description = fmt.Sprintf("~~%s~~", commandBinding.Description)
+		m1 := make(map[string]interface{})
+		m1["app_bindings"] = []apps.Binding{commandBinding}
+
+		post.SetProps(m1)
+
+		return &post
+	}
+
 	if strings.Contains(organizer, ":") {
 		organizer = strings.Split(organizer, ":")[1]
 	}
+
+	if organizerEmail != organizer {
+		path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, eventId)
+		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
+	}
+
 	if organizerEmail == organizer {
 		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", calendarId, eventId)
 		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
+
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
@@ -315,7 +335,7 @@ func HandleChangeEventStatus(c *gin.Context) {
 	calendarId := c.Param("calendarId")
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, calendarId, eventId)
+	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, userId, calendarId, eventId)
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 
