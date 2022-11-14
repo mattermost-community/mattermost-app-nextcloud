@@ -1,7 +1,6 @@
 package oauth
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,36 +51,16 @@ func Oauth2Connect(c *gin.Context) {
 func Oauth2Complete(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
-	code, _ := creq.Values["code"].(string)
 
-	clientId := creq.Context.OAuth2.OAuth2App.ClientID
-	clientSecret := creq.Context.OAuth2.OAuth2App.ClientSecret
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-
-	reqUrl := fmt.Sprintf("%s/index.php/apps/oauth2/api/v1/token", remoteUrl)
-
-	payload := RequestTokenBody{
-		Code:      code,
-		GrantType: "authorization_code",
-	}
-
-	body, _ := json.Marshal(payload)
-
-	req, _ := http.NewRequest("POST", reqUrl, bytes.NewBuffer(body))
-	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
-	req.SetBasicAuth(clientId, clientSecret)
-
-	client := &http.Client{}
-	resp, _ := client.Do(req)
-	defer resp.Body.Close()
-
-	jsonResp := Token{}
-	json.NewDecoder(resp.Body).Decode(&jsonResp)
+	resp := getToken(creq)
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(jsonResp)
+	asActingUser.StoreOAuth2User(resp)
 
-	ConfigureWebhooks(creq, jsonResp.AccessToken, true)
+	asBot := appclient.AsBot(creq.Context)
+	asBot.KVSet("", fmt.Sprintf("nc-user-%s", resp.UserID), creq.Context.ActingUser.Id)
+
+	ConfigureWebhooks(creq, resp.AccessToken, true)
 
 	c.JSON(http.StatusOK, apps.NewTextResponse("completed oauth"))
 }

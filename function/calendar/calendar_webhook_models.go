@@ -85,6 +85,7 @@ type CalendarEventDto struct {
 	Start          string          `json:"start_date"`
 	End            string          `json:"end_date"`
 	OrganizerEmail string          `json:"organizer"`
+	EventOwner     string          `json:"event_owner"`
 	Attendees      []*ics.Attendee `json:"attendees"`
 }
 

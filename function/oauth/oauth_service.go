@@ -69,3 +69,31 @@ func ConfigureWebhooks(creq apps.CallRequest, token string, status bool) {
 	resp, _ := client.Do(req)
 	defer resp.Body.Close()
 }
+
+func getToken(creq apps.CallRequest) Token {
+	code, _ := creq.Values["code"].(string)
+
+	clientId := creq.Context.OAuth2.OAuth2App.ClientID
+	clientSecret := creq.Context.OAuth2.OAuth2App.ClientSecret
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
+
+	reqUrl := fmt.Sprintf("%s/index.php/apps/oauth2/api/v1/token", remoteUrl)
+
+	payload := RequestTokenBody{
+		Code:      code,
+		GrantType: "authorization_code",
+	}
+
+	body, _ := json.Marshal(payload)
+
+	req, _ := http.NewRequest("POST", reqUrl, bytes.NewBuffer(body))
+	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
+	req.SetBasicAuth(clientId, clientSecret)
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+	jsonResp := Token{}
+	json.NewDecoder(resp.Body).Decode(&jsonResp)
+	return jsonResp
+}

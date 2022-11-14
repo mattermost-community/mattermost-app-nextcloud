@@ -31,7 +31,9 @@ type CalendarServiceImpl struct {
 func (c CalendarServiceImpl) CreateEvent(body string) {
 
 	req, _ := http.NewRequest("PUT", c.Url, strings.NewReader(body))
-	req.Header.Set("Content-Type", "text/plain; charset=UTF-8")
+	req.Header.Set("Content-Type", "text/calendar; charset=UTF-8")
+	req.Header.Set("Depth", "0")
+	req.Header.Set("X-NC-CalDAV-Webcal-Caching", "On")
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	client := &http.Client{}
@@ -110,7 +112,7 @@ func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) 
 }
 
 func getEventUrlByResponse(href string) string {
-	return strings.Split(strings.Split(href, "/")[6], ".")[0]
+	return strings.Split(href, "/")[6]
 }
 
 func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) UserCalendarEventsResponse {
@@ -150,7 +152,7 @@ func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) 
 
 }
 
-func (c CalendarServiceImpl) GetCalendarEvent(calendarId string, eventId string) string {
+func (c CalendarServiceImpl) GetCalendarEvent() string {
 	req, _ := http.NewRequest("GET", c.Url, nil)
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
