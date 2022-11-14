@@ -21,6 +21,8 @@ func (c CalenderWebhookServiceImpl) GetCalendarEvent(request WebhookCalendarRequ
 	calendar := getParsedCalendar(request.Values.Data.ObjectData.Calendardata)
 	event, err := getEventUsers(calendar)
 	event.CalendarId = request.Values.Data.CalendarData.URI
+	principalUri := strings.Split(request.Values.Data.CalendarData.Principaluri, "/")
+	event.EventOwner = principalUri[len(principalUri)-1]
 	event.ID = request.Values.Data.ObjectData.URI
 	return event, err
 

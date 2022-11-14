@@ -120,8 +120,9 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	token := oauthService.RefreshToken()
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	user := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-	deleteUrl := fmt.Sprintf("http://localhost:8081/remote.php/dav/calendars/%s/%s/%s.ics", user, calendarId, eventId)
+	deleteUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, user, calendarId, eventId)
 
 	calendarService.deleteUserEvent(deleteUrl, token.AccessToken)
 	c.JSON(http.StatusOK, apps.NewTextResponse("event deleted :"+eventId))
@@ -214,7 +215,7 @@ func HandleGetEvents(c *gin.Context) {
 	mmUserId := creq.Context.ActingUser.Id
 	organizerEmail := creq.Context.ActingUser.Email
 	for i, e := range calEvents {
-		post := createCalendarEventPost(e.Events()[0], status, calendar, organizerEmail, eventIds[i])
+		post := createCalendarEventPost(e.Events()[0], status, calendar, organizerEmail, eventIds[i], userId)
 		asBot.DMPost(mmUserId, post)
 	}
 
@@ -231,8 +232,8 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 	return ""
 }
 
-func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string) *model.Post {
-	var name, attendees, start, finish, description, organizer, eventStatus string
+func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string, userId string) *model.Post {
+	var name, attendees, start, finish, description, organizer string
 	attendees = ""
 	for _, e := range event.Properties {
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
@@ -278,6 +279,8 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		return &post
 	}
 
+	path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, calendarId, eventId)
+	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 	if strings.Contains(organizer, ":") {
 		organizer = strings.Split(organizer, ":")[1]
 	}
@@ -291,7 +294,6 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", calendarId, eventId)
 		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
-
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
@@ -333,13 +335,14 @@ func HandleChangeEventStatus(c *gin.Context) {
 	eventId := c.Param("eventId")
 	status := strings.ToUpper(c.Param("status"))
 	calendarId := c.Param("calendarId")
+	userId := c.Param("userId")
+
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, userId, calendarId, eventId)
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 
-	eventIcs := calendarService.GetCalendarEvent(calendarId, eventId)
+	eventIcs := calendarService.GetCalendarEvent()
 
 	cal, _ := ics.ParseCalendar(strings.NewReader(eventIcs))
 

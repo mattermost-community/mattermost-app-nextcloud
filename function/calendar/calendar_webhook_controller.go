@@ -9,6 +9,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/prokhorind/nextcloud/function/user"
+	"strings"
 )
 
 func HandleWebhookCreateEvent(c *gin.Context) {
@@ -19,20 +20,31 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 	calendarWebhookService := CalenderWebhookServiceImpl{creq}
 	event, _ := calendarWebhookService.GetCalendarEvent(creq)
 
+	principalUri := strings.Split(creq.Values.Data.CalendarData.Principaluri, "/")
+	principal := principalUri[len(principalUri)-1]
 	asBot := appclient.AsBot(creq.Context)
+
+	var userId string
+	asBot.KVGet("", fmt.Sprintf("nc-user-%s", principal), &userId)
+
 	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
+	u, _, err := asBot.GetUser(userId, "")
+	if err != nil {
+		return
+	}
+	userSettings := userSettingsService.GetUserSettingsById(u.Id)
+
+	if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
+		return
+	}
+
 	for _, a := range event.Attendees {
-		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
-		if u == nil {
-			continue
+		if a.Email() == u.Email {
+			post := createPostWithBindings(event, a, "New event", u.Email)
+			asBot.DMPost(u.Id, post)
+			break
 		}
-		userSettings := userSettingsService.GetUserSettingsById(u.Id)
-		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
-			continue
-		}
-		post := createPostWithBindings(event, a, "New event", u.Email)
-		asBot.DMPost(u.Id, post)
 	}
 }
 
@@ -43,22 +55,31 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 
 	calendarWebhookService := CalenderWebhookServiceImpl{creq}
 	event, _ := calendarWebhookService.GetCalendarEvent(creq)
-
 	asBot := appclient.AsBot(creq.Context)
+	principalUri := strings.Split(creq.Values.Data.CalendarData.Principaluri, "/")
+	principal := principalUri[len(principalUri)-1]
 
+	var userId string
+	asBot.KVGet("", fmt.Sprintf("nc-user-%s", principal), &userId)
 	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
+	u, _, err := asBot.GetUser(userId, "")
+	if err != nil {
+		return
+	}
+
+	userSettings := userSettingsService.GetUserSettingsById(u.Id)
+
+	if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
+		return
+	}
+
 	for _, a := range event.Attendees {
-		u, _, _ := asBot.GetUserByEmail(a.Email(), "")
-		if u == nil {
-			continue
+		if a.Email() == u.Email {
+			post := createPostWithBindings(event, a, "Updated event", u.Email)
+			asBot.DMPost(u.Id, post)
+			break
 		}
-		userSettings := userSettingsService.GetUserSettingsById(u.Id)
-		if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
-			continue
-		}
-		post := createPostWithBindings(event, a, "Updated event", u.Email)
-		asBot.DMPost(u.Id, post)
 	}
 }
 
@@ -70,7 +91,8 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 	start := event.GetFormattedStartDate("Jan _2 15:04:05")
 	end := event.GetFormattedEndDate("Jan _2 15:04:05")
 	status := attendee.ParticipationStatus()
-	path := fmt.Sprintf("/calendars/%s/events/%s/status", event.CalendarId, event.ID)
+	eventOwner := event.EventOwner
+	path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", eventOwner, event.CalendarId, event.ID)
 	calendarService := CalendarServiceImpl{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
