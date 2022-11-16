@@ -202,6 +202,7 @@ func HandleGetEvents(c *gin.Context) {
 	events, eventIds := calendarService.GetCalendarEvents(eventRange)
 	if len(events) == 0 {
 		c.JSON(http.StatusOK, apps.NewTextResponse("You do not have events in this calendar"))
+		return
 	}
 	calEvents := make([]ics.Calendar, len(events))
 
@@ -211,10 +212,10 @@ func HandleGetEvents(c *gin.Context) {
 	}
 
 	asBot := appclient.AsBot(creq.Context)
-	status := findAttendeeStatus(asBot, *calEvents[0].Events()[0], creq.Context.ActingUser.Id)
 	mmUserId := creq.Context.ActingUser.Id
 	organizerEmail := creq.Context.ActingUser.Email
 	for i, e := range calEvents {
+		status := findAttendeeStatus(asBot, *e.Events()[0], creq.Context.ActingUser.Id)
 		post := createCalendarEventPost(e.Events()[0], status, calendar, organizerEmail, eventIds[i], userId)
 		asBot.DMPost(mmUserId, post)
 	}
@@ -233,7 +234,7 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 }
 
 func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string, userId string) *model.Post {
-	var name, attendees, start, finish, description, organizer string
+	var name, attendees, start, finish, description, organizer, eventStatus string
 	attendees = ""
 	for _, e := range event.Properties {
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
@@ -279,14 +280,12 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		return &post
 	}
 
-	path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, calendarId, eventId)
-	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 	if strings.Contains(organizer, ":") {
 		organizer = strings.Split(organizer, ":")[1]
 	}
 
 	if organizerEmail != organizer {
-		path := fmt.Sprintf("/calendars/%s/events/%s/status", calendarId, eventId)
+		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, calendarId, eventId)
 		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 	}
 
