@@ -17,7 +17,6 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/oauth2/complete", oauth.Oauth2Complete)
 	r.POST("/oauth2/connect", oauth.Oauth2Connect)
 	r.POST("/file/search", file.FileSearch)
-	r.POST("/send", file.FileSearch)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
 	r.POST("/get-calendar-events-form", calendar.HandleGetCalendarEventsForm)

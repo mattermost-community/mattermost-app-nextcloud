@@ -73,7 +73,7 @@ func Bindings(c *gin.Context) {
 							IsRequired: true,
 						},
 					},
-					Submit: apps.NewCall("/send").WithExpand(apps.Expand{
+					Submit: apps.NewCall("/file/search").WithExpand(apps.Expand{
 						OAuth2App:             apps.ExpandAll,
 						OAuth2User:            apps.ExpandAll,
 						Channel:               apps.ExpandAll,

@@ -25,6 +25,8 @@ func sendFileSearchRequest(url string, body string, accessToken string) FileSear
 
 func sendFiles(f FileResponse, creq *apps.CallRequest) {
 	ref := f.Href
+	refs := strings.Split(ref, "/")
+	fileName := refs[len(refs)-1]
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	asBot := appclient.AsBot(creq.Context)
 
@@ -38,7 +40,7 @@ func sendFiles(f FileResponse, creq *apps.CallRequest) {
 	}
 	if hasContentType {
 		post := model.Post{
-			Message:   remoteUrl + ref,
+			Message:   fmt.Sprintf("[Download](%s) %s", remoteUrl+ref, fileName),
 			ChannelId: creq.Context.Channel.Id,
 		}
 		asBot.CreatePost(&post)

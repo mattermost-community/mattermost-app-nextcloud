@@ -45,7 +45,7 @@ func (c CalendarEventServiceImpl) CreateEventBody() (string, string) {
 	event.SetSummary(title)
 	event.SetLocation("Address")
 	event.SetDescription(description)
-	event.SetOrganizer(organizer.Email, ics.WithCN("Owner"))
+	event.SetOrganizer("mailto:"+organizer.Email, ics.WithCN("Owner"))
 	for _, u := range users {
 		event.AddAttendee(u.Email, ics.CalendarUserTypeIndividual, ics.ParticipationStatusNeedsAction, ics.ParticipationRoleReqParticipant, ics.WithRSVP(true))
 	}
