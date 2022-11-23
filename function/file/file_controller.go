@@ -99,6 +99,7 @@ func FileUploadForm(c *gin.Context) {
 			OAuth2App:             apps.ExpandAll,
 			OAuth2User:            apps.ExpandAll,
 			Channel:               apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
 		}),
 	}
 
