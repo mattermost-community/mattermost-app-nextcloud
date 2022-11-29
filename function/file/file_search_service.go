@@ -26,7 +26,8 @@ func sendFileSearchRequest(url string, body string, accessToken string) FileSear
 func sendFiles(f FileResponse, creq *apps.CallRequest) {
 	ref := f.Href
 	refs := strings.Split(ref, "/")
-	fileName := refs[len(refs)-1]
+	r := strings.NewReplacer("%20", " ")
+	fileName := r.Replace(refs[len(refs)-1])
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	asBot := appclient.AsBot(creq.Context)
 

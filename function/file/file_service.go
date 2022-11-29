@@ -13,13 +13,17 @@ type FileServiceImpl struct {
 	Token string
 }
 
-func (s FileServiceImpl) UploadFile(file []byte) {
+func (s FileServiceImpl) UploadFile(file []byte) (*http.Response, error) {
 	req, _ := http.NewRequest("PUT", s.Url, bytes.NewBuffer(file))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
 
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
 	defer resp.Body.Close()
+	return resp, err
 }
 
 func AddBot(creq apps.CallRequest) {

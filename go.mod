@@ -85,7 +85,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rs/xid v1.3.0 // indirect
-	github.com/sirupsen/logrus v1.8.1 // indirect
+	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/tinylib/msgp v1.1.6 // indirect
 	github.com/ugorji/go/codec v1.2.7 // indirect
@@ -101,7 +101,7 @@ require (
 	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20220214200702-86341886e292 // indirect
 	golang.org/x/net v0.0.0-20220225172249-27dd8689420f // indirect
-	golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9 // indirect
+	golang.org/x/sys v0.0.0-20220715151400-c0bba94af5f8 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 	google.golang.org/api v0.62.0 // indirect
