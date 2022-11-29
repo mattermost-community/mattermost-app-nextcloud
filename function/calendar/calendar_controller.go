@@ -216,7 +216,7 @@ func HandleGetEvents(c *gin.Context) {
 	organizerEmail := creq.Context.ActingUser.Email
 	for i, e := range calEvents {
 		status := findAttendeeStatus(asBot, *e.Events()[0], creq.Context.ActingUser.Id)
-		post := createCalendarEventPost(e.Events()[0], status, calendar, organizerEmail, eventIds[i], userId)
+		post := createCalendarEventPost(e.Events()[0], status, *asBot, calendar, organizerEmail, eventIds[i], userId)
 		asBot.DMPost(mmUserId, post)
 	}
 
@@ -233,18 +233,14 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 	return ""
 }
 
-func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, calendarId string, organizerEmail string, eventId string, userId string) *model.Post {
-	var name, attendees, start, finish, description, organizer, eventStatus string
-	attendees = ""
+func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, bot appclient.Client, calendarId string, organizerEmail string, eventId string, userId string) *model.Post {
+	var name, start, finish, description, organizer, eventStatus string
 	for _, e := range event.Properties {
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
 			description = e.BaseProperty.Value
 		}
 		if e.BaseProperty.IANAToken == "ORGANIZER" {
 			organizer = e.BaseProperty.Value
-		}
-		if e.BaseProperty.IANAToken == "ATTENDEE" {
-			attendees = attendees + " " + e.BaseProperty.Value
 		}
 		if e.BaseProperty.IANAToken == "SUMMARY" {
 			name = e.BaseProperty.Value
@@ -261,11 +257,13 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 	}
 	post := model.Post{}
 	commandBinding := apps.Binding{
-		Location:    "embedded",
-		AppID:       "nextcloud",
-		Label:       "Event " + name,
-		Description: createDescriptionForEvent(description, start, finish, organizer, attendees),
-		Bindings:    []apps.Binding{},
+		Location: "embedded",
+		AppID:    "nextcloud",
+		Label:    "Event " + name,
+		Description: сreateDescriptionForEvent(description, сastDateToSpecificFormat(start, "Jan _2 15:04:05"),
+			сastDateToSpecificFormat(finish, "Jan _2 15:04:05"), сastSingleEmailToMMUserNickname(organizer, "", bot),
+			сastUserEmailsToMMUserNicknames(event.Attendees(), bot)),
+		Bindings: []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
 
@@ -291,7 +289,7 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 
 	if organizerEmail == organizer {
 		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", calendarId, eventId)
-		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
+		сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
@@ -301,11 +299,45 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 	return &post
 }
 
-func createDescriptionForEvent(description string, start string, finish string, organizer string, attendees string) string {
-	return fmt.Sprintf("Description %s. Organized by %s. Attendies: %s. Start date: %s, End date: %s", description, organizer, attendees, start, finish)
+func сastUserEmailsToMMUserNicknames(attendees []*ics.Attendee, bot appclient.Client) string {
+	var attendeesNicknames string
+	for _, attendee := range attendees {
+		attendeesNicknames += сastSingleEmailToMMUserNickname(attendee.Email(), attendee.ICalParameters["PARTSTAT"][0], bot)
+	}
+	return attendeesNicknames
 }
 
-func createDeleteButton(commandBinding *apps.Binding, location apps.Location, label string, deletePath string) {
+func сastSingleEmailToMMUserNickname(email string, status string, bot appclient.Client) string {
+	if strings.Contains(email, ":") {
+		email = strings.Split(email, ":")[1]
+	}
+	mmUser, _, err := bot.GetUserByEmail(email, "")
+	if err == nil {
+		if status == "" {
+			return "@" + mmUser.Username + " "
+		}
+		return "@" + mmUser.Username + " - " + status + " "
+	} else {
+		return email + " - " + " "
+	}
+}
+
+func сastDateToSpecificFormat(dateStr string, outputFormat string) string {
+	date, error := time.Parse(icalTimestampFormatUtc, dateStr)
+
+	if error != nil {
+		date, _ := time.Parse(icalTimestampFormatUtcLocal, dateStr)
+		return date.Format(outputFormat)
+	}
+
+	return date.Format(outputFormat)
+}
+
+func сreateDescriptionForEvent(description string, start string, finish string, organizer string, attendees string) string {
+	return fmt.Sprintf("Description %s. Organized by %sAttendies: %s. Start date: %s, End date: %s", description, organizer, attendees, start, finish)
+}
+
+func сreateDeleteButton(commandBinding *apps.Binding, location apps.Location, label string, deletePath string) {
 	expand := apps.Expand{
 		OAuth2App:             apps.ExpandAll,
 		OAuth2User:            apps.ExpandAll,

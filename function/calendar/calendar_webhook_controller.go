@@ -41,7 +41,7 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 
 	for _, a := range event.Attendees {
 		if a.Email() == u.Email {
-			post := createPostWithBindings(event, a, "New event", u.Email)
+			post := createPostWithBindings(event, a, *asBot, "New event", u.Email)
 			asBot.DMPost(u.Id, post)
 			break
 		}
@@ -55,6 +55,11 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 
 	calendarWebhookService := CalenderWebhookServiceImpl{creq}
 	event, _ := calendarWebhookService.GetCalendarEvent(creq)
+
+	if event.Status == "CANCELLED" {
+		return
+	}
+
 	asBot := appclient.AsBot(creq.Context)
 	principalUri := strings.Split(creq.Values.Data.CalendarData.Principaluri, "/")
 	principal := principalUri[len(principalUri)-1]
@@ -76,14 +81,14 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 
 	for _, a := range event.Attendees {
 		if a.Email() == u.Email {
-			post := createPostWithBindings(event, a, "Updated event", u.Email)
+			post := createPostWithBindings(event, a, *asBot, "Updated event", u.Email)
 			asBot.DMPost(u.Id, post)
 			break
 		}
 	}
 }
 
-func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, message string, orginizerEmail string) *model.Post {
+func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, bot appclient.Client, message string, orginizerEmail string) *model.Post {
 
 	post := model.Post{
 		Message: message,
@@ -95,17 +100,18 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 	path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", eventOwner, event.CalendarId, event.ID)
 	calendarService := CalendarServiceImpl{}
 	commandBinding := apps.Binding{
-		Location:    "embedded",
-		AppID:       "nextcloud",
-		Label:       fmt.Sprintf("%s-%s  %s %s", start, end, event.Summary, status),
-		Description: event.Description,
-		Bindings:    []apps.Binding{},
+		Location: "embedded",
+		AppID:    "nextcloud",
+		Label:    fmt.Sprintf("%s-%s  %s %s", start, end, event.Summary, status),
+		Description: fmt.Sprintf("Orginizer %s Description: %s Attendies %s",
+			castEmailToMMUsername(event.OrganizerEmail, bot), event.Description, prepareAllAttendeesUsernames(event.Attendees, bot)),
+		Bindings: []apps.Binding{},
 	}
 	commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 
 	if event.OrganizerEmail == orginizerEmail {
 		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", event.CalendarId, event.ID)
-		createDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
+		сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
@@ -113,4 +119,23 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, mes
 	post.SetProps(m1)
 
 	return &post
+}
+
+func castEmailToMMUsername(email string, bot appclient.Client) string {
+	if strings.Contains(email, ":") {
+		email = strings.Split(email, ":")[1]
+	}
+	mmUser, _, err := bot.GetUserByEmail(email, "")
+	if err != nil {
+		return email
+	}
+	return "@" + mmUser.Username
+}
+
+func prepareAllAttendeesUsernames(attendees []*ics.Attendee, bot appclient.Client) string {
+	var attendeesUsernames string
+	for _, attendee := range attendees {
+		attendeesUsernames += castEmailToMMUsername(attendee.Email(), bot) + " - " + attendee.ICalParameters["PARTSTAT"][0] + " "
+	}
+	return attendeesUsernames
 }

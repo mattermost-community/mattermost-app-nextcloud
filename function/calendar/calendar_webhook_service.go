@@ -49,6 +49,8 @@ func getEventUsers(calendar ics.Calendar) (*CalendarEventDto, error) {
 				event.Description = p.Value
 			case "ORGANIZER":
 				event.OrganizerEmail = p.Value
+			case "STATUS":
+				event.Status = p.Value
 			}
 			fmt.Println(p.BaseProperty)
 		}

@@ -78,14 +78,15 @@ type AppBindingsEmbeddedMessage struct {
 }
 
 type CalendarEventDto struct {
-	CalendarId     string          `json:"calendar_id"`
-	ID             string          `json:"id"`
-	Summary        string          `json:"summary"`
-	Description    string          `json:"description"`
-	Start          string          `json:"start_date"`
-	End            string          `json:"end_date"`
-	OrganizerEmail string          `json:"organizer"`
-	EventOwner     string          `json:"event_owner"`
+	CalendarId     string `json:"calendar_id"`
+	ID             string `json:"id"`
+	Summary        string `json:"summary"`
+	Description    string `json:"description"`
+	Start          string `json:"start_date"`
+	End            string `json:"end_date"`
+	OrganizerEmail string `json:"organizer"`
+	EventOwner     string `json:"event_owner"`
+	Status         string
 	Attendees      []*ics.Attendee `json:"attendees"`
 }
 
