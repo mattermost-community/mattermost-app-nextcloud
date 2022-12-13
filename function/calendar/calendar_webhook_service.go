@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	ics "github.com/arran4/golang-ical"
 )
@@ -42,9 +43,15 @@ func getEventUsers(calendar ics.Calendar) (*CalendarEventDto, error) {
 			case "SUMMARY":
 				event.Summary = p.Value
 			case "DTSTART":
-				event.Start = p.Value
+				locale := p.ICalParameters["TZID"][0]
+				loc, _ := time.LoadLocation(locale)
+				date, _ := time.ParseInLocation(icalTimestampFormatUtcLocal, p.Value, loc)
+				event.Start = date.UTC().Format(icalTimestampFormatUtc)
 			case "DTEND":
-				event.End = p.Value
+				locale := p.ICalParameters["TZID"][0]
+				loc, _ := time.LoadLocation(locale)
+				date, _ := time.ParseInLocation(icalTimestampFormatUtcLocal, p.Value, loc)
+				event.End = date.UTC().Format(icalTimestampFormatUtc)
 			case "DESCRIPTION":
 				event.Description = p.Value
 			case "ORGANIZER":

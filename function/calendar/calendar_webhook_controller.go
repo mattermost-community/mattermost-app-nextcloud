@@ -10,6 +10,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/prokhorind/nextcloud/function/user"
 	"strings"
+	"time"
 )
 
 func HandleWebhookCreateEvent(c *gin.Context) {
@@ -33,6 +34,24 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 	if err != nil {
 		return
 	}
+	var timezone string
+	var loc *time.Location
+
+	if u.Timezone["useAutomaticTimezone"] == "false" {
+		timezone = u.Timezone["manualTimezone"]
+		loc, _ = time.LoadLocation(timezone)
+	} else {
+		timezone = u.Timezone["automaticTimezone"]
+		loc, _ = time.LoadLocation(timezone)
+	}
+
+	from, _ := time.Parse(icalTimestampFormatUtc, event.Start)
+	to, _ := time.Parse(icalTimestampFormatUtc, event.End)
+	localizedFrom := from.In(loc).Format(icalTimestampFormatUtcLocal)
+	localizedTo := to.In(loc).Format(icalTimestampFormatUtcLocal)
+	event.Start = localizedFrom
+	event.End = localizedTo
+
 	userSettings := userSettingsService.GetUserSettingsById(u.Id)
 
 	if userSettings.Contains(creq.Values.Data.CalendarData.URI) {
@@ -41,7 +60,7 @@ func HandleWebhookCreateEvent(c *gin.Context) {
 
 	for _, a := range event.Attendees {
 		if a.Email() == u.Email {
-			post := createPostWithBindings(event, a, *asBot, "New event", u.Email)
+			post := createPostWithBindings(event, a, *asBot, "New event", u.Email, timezone)
 			asBot.DMPost(u.Id, post)
 			break
 		}
@@ -79,16 +98,34 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 		return
 	}
 
+	var timezone string
+	var loc *time.Location
+
+	if u.Timezone["useAutomaticTimezone"] == "false" {
+		timezone = u.Timezone["manualTimezone"]
+		loc, _ = time.LoadLocation(timezone)
+	} else {
+		timezone = u.Timezone["automaticTimezone"]
+		loc, _ = time.LoadLocation(timezone)
+	}
+
+	from, _ := time.Parse(icalTimestampFormatUtc, event.Start)
+	to, _ := time.Parse(icalTimestampFormatUtc, event.End)
+	localizedFrom := from.In(loc).Format(icalTimestampFormatUtcLocal)
+	localizedTo := to.In(loc).Format(icalTimestampFormatUtcLocal)
+	event.Start = localizedFrom
+	event.End = localizedTo
+
 	for _, a := range event.Attendees {
 		if a.Email() == u.Email {
-			post := createPostWithBindings(event, a, *asBot, "Updated event", u.Email)
+			post := createPostWithBindings(event, a, *asBot, "Updated event", u.Email, timezone)
 			asBot.DMPost(u.Id, post)
 			break
 		}
 	}
 }
 
-func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, bot appclient.Client, message string, orginizerEmail string) *model.Post {
+func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, bot appclient.Client, message string, orginizerEmail string, timezone string) *model.Post {
 
 	post := model.Post{
 		Message: message,
@@ -102,8 +139,8 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, bot
 	commandBinding := apps.Binding{
 		Location: "embedded",
 		AppID:    "nextcloud",
-		Label:    fmt.Sprintf("%s-%s  %s %s", start, end, event.Summary, status),
-		Description: fmt.Sprintf("Orginizer %s Description: %s Attendies %s",
+		Label:    fmt.Sprintf("%s %s-%s  %s %s", timezone, start, end, event.Summary, status),
+		Description: fmt.Sprintf("Organizer %s Description: %s Attendies %s",
 			castEmailToMMUsername(event.OrganizerEmail, bot), event.Description, prepareAllAttendeesUsernames(event.Attendees, bot)),
 		Bindings: []apps.Binding{},
 	}

@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	ics "github.com/arran4/golang-ical"
+	"github.com/jarylc/go-chrono/v2"
 	"github.com/prokhorind/nextcloud/function/user"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strconv"
 	"strings"
@@ -30,7 +32,17 @@ func HandleCreateEvent(c *gin.Context) {
 	asActingUser.StoreOAuth2User(token)
 
 	calendarEventService := CalendarEventServiceImpl{creq}
-	uuid, body := calendarEventService.CreateEventBody()
+	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
+	toDateUTC := creq.Values["to-event-date"].(map[string]interface{})["value"].(string)
+
+	var timezone string
+
+	if creq.Context.ActingUser.Timezone["useAutomaticTimezone"] == "false" {
+		timezone = creq.Context.ActingUser.Timezone["manualTimezone"]
+	} else {
+		timezone = creq.Context.ActingUser.Timezone["automaticTimezone"]
+	}
+	uuid, body := calendarEventService.CreateEventBody(fromDateUTC, toDateUTC, timezone)
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -69,20 +81,46 @@ func HandleCreateEventForm(c *gin.Context) {
 		Icon:  "icon.png",
 		Fields: []apps.Field{
 			{
-				Type:       "text",
+				Type:       apps.FieldTypeText,
 				Name:       "title",
 				Label:      "Title",
 				IsRequired: true,
 			},
 			{
-				Type:        "text",
+				Type:       apps.FieldTypeDynamicSelect,
+				Name:       "from-event-date",
+				Label:      "From",
+				IsRequired: true,
+				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
+				}),
+			},
+			{
+				Type:       apps.FieldTypeDynamicSelect,
+				Name:       "to-event-date",
+				Label:      "To",
+				IsRequired: true,
+				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
+				}),
+			},
+			{
+				Type:        apps.FieldTypeText,
 				Name:        "description",
 				Label:       "Description",
 				TextSubtype: apps.TextFieldSubtypeTextarea,
 				IsRequired:  false,
 			},
 			{
-				Type:          "user",
+				Type:          apps.FieldTypeUser,
 				Name:          "attendees",
 				Label:         "Attendees",
 				IsRequired:    true,
@@ -90,7 +128,7 @@ func HandleCreateEventForm(c *gin.Context) {
 			},
 
 			{
-				Type:                "static_select",
+				Type:                apps.FieldTypeStaticSelect,
 				Name:                "calendar",
 				Label:               "Calendar",
 				IsRequired:          true,
@@ -381,6 +419,29 @@ func HandleChangeEventStatus(c *gin.Context) {
 	calendarService.CreateEvent(body)
 	c.JSON(http.StatusOK, apps.NewTextResponse("event status updated:"+status))
 
+}
+
+func HandleGetParsedCalendarDate(c *gin.Context) {
+	creq := apps.CallRequest{}
+	json.NewDecoder(c.Request.Body).Decode(&creq)
+
+	ch, err := chrono.New()
+	if err != nil {
+		log.Error(err)
+	}
+
+	now := time.Now()
+
+	t, err := ch.ParseDate(creq.Query, now)
+	var so apps.SelectOption
+	if err != nil || t == nil {
+		so = apps.SelectOption{Label: "", Value: ""}
+	} else {
+		so = apps.SelectOption{Label: t.Format(time.ANSIC), Value: t.String()}
+	}
+	var soOptions []apps.SelectOption
+	soOptions = append(soOptions, so)
+	c.JSON(http.StatusOK, apps.NewLookupResponse(soOptions))
 }
 
 func HandleGetUserCalendars(c *gin.Context) {

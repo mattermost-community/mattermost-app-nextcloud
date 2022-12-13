@@ -12,7 +12,13 @@ type CalendarEventServiceImpl struct {
 	creq apps.CallRequest
 }
 
-func (c CalendarEventServiceImpl) CreateEventBody() (string, string) {
+func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, toDateUTC string, timezone string) (string, string) {
+
+	from, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", fromDateUTC)
+	if err != nil {
+		println(err.Error())
+	}
+	to, _ := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", toDateUTC)
 
 	description := c.creq.Values["description"].(string)
 	title := c.creq.Values["title"].(string)
@@ -36,12 +42,13 @@ func (c CalendarEventServiceImpl) CreateEventBody() (string, string) {
 	newUUid := uuid.New()
 	id := newUUid.String()
 	cal := ics.NewCalendar()
+	cal.SetTzid(timezone)
 	event := cal.AddEvent(id)
-	event.SetCreatedTime(time.Now())
-	event.SetDtStampTime(time.Now())
-	event.SetModifiedAt(time.Now())
-	event.SetStartAt(time.Now())
-	event.SetEndAt(time.Now())
+	event.SetCreatedTime(time.Now().UTC())
+	event.SetDtStampTime(time.Now().UTC())
+	event.SetModifiedAt(time.Now().UTC())
+	event.SetProperty(ics.ComponentPropertyDtStart, from.Format(icalTimestampFormatUtcLocal), &ics.KeyValues{Key: "TZID", Value: []string{timezone}})
+	event.SetProperty(ics.ComponentPropertyDtEnd, to.Format(icalTimestampFormatUtcLocal), &ics.KeyValues{Key: "TZID", Value: []string{timezone}})
 	event.SetSummary(title)
 	event.SetLocation("Address")
 	event.SetDescription(description)

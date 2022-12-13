@@ -23,6 +23,7 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/delete-event/:calendarId/events/:eventId", calendar.HandleDeleteCalendarEvent)
 
 	r.POST("/get-calendar-events", calendar.HandleGetEvents)
+	r.POST("/get-parsed-date", calendar.HandleGetParsedCalendarDate)
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
 	r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)

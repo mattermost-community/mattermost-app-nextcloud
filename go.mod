@@ -6,10 +6,16 @@ require (
 	github.com/aws/aws-lambda-go v1.19.1
 	github.com/awslabs/aws-lambda-go-api-proxy v0.13.2
 	github.com/gin-gonic/gin v1.8.1
+	github.com/jarylc/go-chrono/v2 v2.4.2
 	github.com/mattermost/mattermost-plugin-apps v1.1.0
 )
 
-require golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
+require (
+	github.com/dlclark/regexp2 v1.4.1-0.20201116162257-a2a8dda75c91 // indirect
+	github.com/dop251/goja v0.0.0-20210817151038-07a7fd9355b4 // indirect
+	github.com/go-sourcemap/sourcemap v2.1.3+incompatible // indirect
+	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
+)
 
 require (
 	cloud.google.com/go v0.99.0 // indirect
