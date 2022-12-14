@@ -120,8 +120,46 @@ func HandleWebhookUpdateEvent(c *gin.Context) {
 		if a.Email() == u.Email {
 			post := createPostWithBindings(event, a, *asBot, "Updated event", u.Email, timezone)
 			asBot.DMPost(u.Id, post)
+			notifyAllMeetingUsersAboutUpdate(event, *asBot, *u, *a, timezone)
 			break
 		}
+	}
+
+}
+
+func notifyAllMeetingUsersAboutUpdate(event *CalendarEventDto, bot appclient.Client, u model.User, a ics.Attendee, timezone string) {
+	post := model.Post{
+		Message: fmt.Sprintf("User @%s updated his meeting status to %s", u.Username, a.ParticipationStatus()),
+	}
+	start := event.GetFormattedStartDate("Jan _2 15:04:05")
+	end := event.GetFormattedEndDate("Jan _2 15:04:05")
+	commandBinding := apps.Binding{
+		Location: "embedded",
+		AppID:    "nextcloud",
+		Label:    fmt.Sprintf("%s %s-%s  %s %s", timezone, start, end, event.Summary, a.ParticipationStatus()),
+		Description: fmt.Sprintf("Organizer %s Description: %s Attendies %s",
+			castEmailToMMUsername(event.OrganizerEmail, bot), event.Description, prepareAllAttendeesUsernames(event.Attendees, bot)),
+		Bindings: []apps.Binding{},
+	}
+	m1 := make(map[string]interface{})
+	m1["app_bindings"] = []apps.Binding{commandBinding}
+
+	post.SetProps(m1)
+	for _, a := range event.Attendees {
+		if a.Email() != u.Email {
+			mmUser, _, err := bot.GetUserByEmail(a.Email(), "")
+			if err != nil {
+				bot.DMPost(mmUser.Id, &post)
+			}
+		}
+	}
+	var eventOrginizerEmail = event.OrganizerEmail
+	if strings.Contains(eventOrginizerEmail, "mailto:") {
+		eventOrginizerEmail = strings.Split(eventOrginizerEmail, ":")[1]
+	}
+	mmEventOrginizer, _, err := bot.GetUserByEmail(eventOrginizerEmail, "")
+	if err == nil {
+		bot.DMPost(mmEventOrginizer.Id, &post)
 	}
 }
 
