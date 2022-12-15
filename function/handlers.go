@@ -35,5 +35,5 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/users/:userId/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
 	r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
 
-	r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
+	//r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 }

@@ -190,6 +190,32 @@ func HandleGetCalendarEventsForm(c *gin.Context) {
 		Title: "Nextcloud calendar events",
 		Icon:  "icon.png",
 		Fields: []apps.Field{
+			{
+				Type:       apps.FieldTypeDynamicSelect,
+				Name:       "from-event-date",
+				Label:      "From",
+				IsRequired: true,
+				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
+				}),
+			},
+			{
+				Type:       apps.FieldTypeDynamicSelect,
+				Name:       "to-event-date",
+				Label:      "To",
+				IsRequired: true,
+				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
+				}),
+			},
 
 			{
 				Type:                "static_select",
@@ -228,9 +254,12 @@ func HandleGetEvents(c *gin.Context) {
 	calendar := creq.Values["calendar"].(map[string]interface{})["value"].(string)
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s", remoteUrl, userId, calendar)
 
-	now := time.Now()
-	from := now.AddDate(0, 0, -1)
-	to := now.AddDate(0, 0, 1)
+	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
+	toDateUTC := creq.Values["to-event-date"].(map[string]interface{})["value"].(string)
+
+	from, _ := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", fromDateUTC)
+	to, _ := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", toDateUTC)
+
 	eventRange := CalendarEventRequestRange{
 		From: from,
 		To:   to,

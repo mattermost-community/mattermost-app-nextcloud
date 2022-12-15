@@ -60,7 +60,7 @@ func Oauth2Complete(c *gin.Context) {
 	asBot := appclient.AsBot(creq.Context)
 	asBot.KVSet("", fmt.Sprintf("nc-user-%s", resp.UserID), creq.Context.ActingUser.Id)
 
-	ConfigureWebhooks(creq, resp.AccessToken, true)
+	//ConfigureWebhooks(creq, resp.AccessToken, true)
 
 	c.JSON(http.StatusOK, apps.NewTextResponse("completed oauth"))
 }
