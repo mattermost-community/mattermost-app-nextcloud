@@ -499,8 +499,7 @@ func HandleGetUserCalendars(c *gin.Context) {
 		post := createCalendarPost(i, c, us.Contains(c.Value))
 		asBot.DMPost(creq.Context.ActingUser.Id, post)
 	}
-
-	c.JSON(http.StatusOK, apps.NewTextResponse("send calendars to DM:"))
+	c.JSON(http.StatusOK, apps.NewTextResponse(""))
 
 }
 

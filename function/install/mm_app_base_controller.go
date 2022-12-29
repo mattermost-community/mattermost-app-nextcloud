@@ -3,6 +3,7 @@ package install
 import (
 	_ "embed"
 	"encoding/json"
+	"github.com/mattermost/mattermost-server/v6/model"
 	"net/http"
 	"os"
 
@@ -60,20 +61,20 @@ func Bindings(c *gin.Context) {
 	} else {
 		commandBinding.Bindings = append(commandBinding.Bindings,
 			apps.Binding{
-				Location: "search",
-				Label:    "search",
+				Location: "share",
+				Label:    "share",
 				Form: &apps.Form{
-					Title: "Search Nextcloud files",
+					Title: "Share Nextcloud file",
 					Icon:  "icon.png",
 					Fields: []apps.Field{
 						{
-							Type:       "text",
+							Type:       apps.FieldTypeText,
 							Name:       "file_name",
 							Label:      "file-name",
 							IsRequired: true,
 						},
 					},
-					Submit: apps.NewCall("/file/search").WithExpand(apps.Expand{
+					Submit: apps.NewCall("/file/search/form").WithExpand(apps.Expand{
 						OAuth2App:             apps.ExpandAll,
 						OAuth2User:            apps.ExpandAll,
 						Channel:               apps.ExpandAll,
@@ -82,6 +83,7 @@ func Bindings(c *gin.Context) {
 					}),
 				},
 			},
+
 			apps.Binding{
 				Location: "disconnect",
 				Label:    "disconnect",
@@ -89,21 +91,24 @@ func Bindings(c *gin.Context) {
 					ActingUserAccessToken: apps.ExpandAll,
 					ActingUser:            apps.ExpandAll,
 				}),
-			},
+			})
 
-			apps.Binding{
-				Location: "calendars",
-				Label:    "calendars",
+		if creq.Context.Channel != nil && model.ChannelTypeDirect == creq.Context.Channel.Type {
+			commandBinding.Bindings = append(commandBinding.Bindings,
+				apps.Binding{
+					Location: "calendars",
+					Label:    "calendars",
 
-				Submit: apps.NewCall("/calendars").WithExpand(apps.Expand{
-					ActingUserAccessToken: apps.ExpandAll,
-					OAuth2App:             apps.ExpandAll,
-					OAuth2User:            apps.ExpandAll,
-					Channel:               apps.ExpandAll,
-					ActingUser:            apps.ExpandAll,
-				}),
-			},
-		)
+					Submit: apps.NewCall("/calendars").WithExpand(apps.Expand{
+						ActingUserAccessToken: apps.ExpandAll,
+						OAuth2App:             apps.ExpandAll,
+						OAuth2User:            apps.ExpandAll,
+						Channel:               apps.ExpandAll,
+						ActingUser:            apps.ExpandAll,
+					}),
+				})
+		}
+
 	}
 
 	if creq.Context.ActingUser.IsSystemAdmin() {
@@ -111,7 +116,7 @@ func Bindings(c *gin.Context) {
 			Location: "configure",
 			Label:    "configure",
 			Form: &apps.Form{
-				Title: "Configures NextCloud client",
+				Title: "Configures Nextcloud client",
 				Icon:  "icon.png",
 				Fields: []apps.Field{
 					{

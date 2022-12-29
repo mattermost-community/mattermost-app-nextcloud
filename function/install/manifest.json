@@ -8,7 +8,8 @@
     "path": "/bindings",
     "expand": {
       "acting_user": "all",
-      "oauth2_user": "all"
+      "oauth2_user": "all",
+      "channel": "all"
     }
   },
   "requested_permissions": [

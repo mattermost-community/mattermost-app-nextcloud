@@ -3,6 +3,9 @@ package file
 import (
 	"bytes"
 	"fmt"
+	"github.com/mattermost/mattermost-plugin-apps/apps"
+	"github.com/mattermost/mattermost-server/v6/model"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -69,4 +72,35 @@ func (f FileChunkServiceImpl) abortChunkUpload() (*http.Response, error) {
 	defer resp.Body.Close()
 
 	return resp, err
+}
+
+func uploadChunks(chunkFileSizeInBytes int64, fileInfo *model.FileInfo, mmfileUrl string, creq apps.CallRequest, fileService FileChunkServiceImpl) bool {
+	var low int64
+	var high int64
+	for low = 0; low < fileInfo.Size; low += chunkFileSizeInBytes + 1 {
+		high = chunkFileSizeInBytes + low
+		chunkUploaded := uploadChunk(mmfileUrl, creq, low, high, fileService)
+		if !chunkUploaded {
+			return false
+		}
+	}
+	return true
+}
+
+func uploadChunk(mmfileUrl string, creq apps.CallRequest, low int64, high int64, fileService FileChunkServiceImpl) bool {
+	chunk, err := GetChunkedFile(mmfileUrl, creq.Context.BotAccessToken, fmt.Sprint(low), fmt.Sprint(high))
+
+	if err != nil {
+		log.Errorf("Chunk was not downloaded from MM %s", err.Error())
+		fileService.abortChunkUpload()
+		return false
+	}
+
+	_, uploadError := fileService.uploadFileChunk(chunk, fmt.Sprintf("%016d", low), fmt.Sprintf("%016d", high))
+	if uploadError != nil {
+		fileService.abortChunkUpload()
+		log.Errorf("Chunk was not uploaded to NC %s", uploadError.Error())
+		return false
+	}
+	return true
 }

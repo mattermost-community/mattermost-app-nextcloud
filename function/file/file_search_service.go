@@ -3,9 +3,6 @@ package file
 import (
 	"encoding/xml"
 	"fmt"
-	"github.com/mattermost/mattermost-plugin-apps/apps"
-	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
-	"github.com/mattermost/mattermost-server/v6/model"
 	"net/http"
 	"strings"
 )
@@ -21,31 +18,6 @@ func sendFileSearchRequest(url string, body string, accessToken string) FileSear
 	xmlResp := FileSearchResponseBody{}
 	xml.NewDecoder(resp.Body).Decode(&xmlResp)
 	return xmlResp
-}
-
-func sendFiles(f FileResponse, creq *apps.CallRequest) {
-	ref := f.Href
-	refs := strings.Split(ref, "/")
-	r := strings.NewReplacer("%20", " ")
-	fileName := r.Replace(refs[len(refs)-1])
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	asBot := appclient.AsBot(creq.Context)
-
-	hasContentType := false
-
-	for _, p := range f.PropertyStats {
-		if len(p.Property.Getcontenttype) != 0 {
-			hasContentType = true
-			break
-		}
-	}
-	if hasContentType {
-		post := model.Post{
-			Message:   fmt.Sprintf("[Download](%s) %s", remoteUrl+ref, fileName),
-			ChannelId: creq.Context.Channel.Id,
-		}
-		asBot.CreatePost(&post)
-	}
 }
 
 func createSearchRequestBody(userName string, fileName string) string {

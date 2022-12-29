@@ -35,7 +35,7 @@ func HandleConnect(c *gin.Context) {
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
 	c.JSON(http.StatusOK,
-		apps.NewTextResponse("[Connect](%s) to Next Cloud.", creq.Context.OAuth2.ConnectURL))
+		apps.NewTextResponse("[Connect](%s) to Nextcloud.", creq.Context.OAuth2.ConnectURL))
 
 }
 
@@ -85,6 +85,6 @@ func Disconnect(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, apps.CallResponse{
-		Text: "Disconnected your NextCloud account",
+		Text: "Disconnected your Nextcloud account",
 	})
 }
