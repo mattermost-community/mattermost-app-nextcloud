@@ -33,7 +33,7 @@ func HandleCreateEvent(c *gin.Context) {
 
 	calendarEventService := CalendarEventServiceImpl{creq}
 	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
-	toDateUTC := creq.Values["to-event-date"].(map[string]interface{})["value"].(string)
+	duration := creq.Values["duration"].(map[string]interface{})["value"].(string)
 
 	var timezone string
 
@@ -42,7 +42,7 @@ func HandleCreateEvent(c *gin.Context) {
 	} else {
 		timezone = creq.Context.ActingUser.Timezone["automaticTimezone"]
 	}
-	uuid, body := calendarEventService.CreateEventBody(fromDateUTC, toDateUTC, timezone)
+	uuid, body := calendarEventService.CreateEventBody(fromDateUTC, duration, timezone)
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -100,17 +100,12 @@ func HandleCreateEventForm(c *gin.Context) {
 				}),
 			},
 			{
-				Type:       apps.FieldTypeDynamicSelect,
-				Name:       "to-event-date",
-				Label:      "To",
-				IsRequired: true,
-				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
-					ActingUserAccessToken: apps.ExpandAll,
-					OAuth2App:             apps.ExpandAll,
-					OAuth2User:            apps.ExpandAll,
-					Channel:               apps.ExpandAll,
-					ActingUser:            apps.ExpandAll,
-				}),
+				Type:                apps.FieldTypeStaticSelect,
+				Name:                "duration",
+				Label:               "Duration",
+				IsRequired:          true,
+				SelectStaticOptions: prepareMeetingDurations(),
+				Value:               apps.SelectOption{Label: "30 minutes", Value: "30 minutes"},
 			},
 			{
 				Type:        apps.FieldTypeText,
@@ -404,6 +399,39 @@ func сreateDescriptionForEvent(description string, start string, finish string,
 	return fmt.Sprintf("Description %s. Organized by %sAttendies: %s. Start date: %s, End date: %s", description, organizer, attendees, start, finish)
 }
 
+func prepareMeetingDurations() []apps.SelectOption {
+	var durations []apps.SelectOption
+	durations = append(durations, apps.SelectOption{
+		Label: "15 minutes",
+		Value: "15 minutes",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "30 minutes",
+		Value: "30 minutes",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "45 minutes",
+		Value: "45 minutes",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "1 hour",
+		Value: "1 hour",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "1.5 hours",
+		Value: "1.5 hours",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "2 hours",
+		Value: "2 hours",
+	})
+	durations = append(durations, apps.SelectOption{
+		Label: "All day",
+		Value: "All day",
+	})
+	return durations
+}
+
 func сreateDeleteButton(commandBinding *apps.Binding, location apps.Location, label string, deletePath string) {
 	expand := apps.Expand{
 		OAuth2App:             apps.ExpandAll,
@@ -490,6 +518,11 @@ func HandleGetUserCalendars(c *gin.Context) {
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 
 	userCalendars := calendarService.GetUserCalendars()
+
+	if len(userCalendars) == 0 {
+		c.JSON(http.StatusOK, apps.NewTextResponse("You don`t have any calendars"))
+		return
+	}
 
 	asBot := appclient.AsBot(creq.Context)
 	userSettingsService := user.UserSettingsServiceImpl{asBot}

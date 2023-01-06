@@ -92,8 +92,7 @@ func Bindings(c *gin.Context) {
 					ActingUser:            apps.ExpandAll,
 				}),
 			})
-
-		if creq.Context.Channel != nil && model.ChannelTypeDirect == creq.Context.Channel.Type {
+		if creq.Context.ExpandedContext.Channel != nil && model.ChannelTypeDirect == creq.Context.ExpandedContext.Channel.Type {
 			commandBinding.Bindings = append(commandBinding.Bindings,
 				apps.Binding{
 					Location: "calendars",
@@ -108,7 +107,6 @@ func Bindings(c *gin.Context) {
 					}),
 				})
 		}
-
 	}
 
 	if creq.Context.ActingUser.IsSystemAdmin() {
