@@ -166,9 +166,10 @@ func FileShareForm(c *gin.Context) {
 
 	for _, f := range files {
 		ref := f.Href
+		displayname := f.PropertyStats[0].Property.Displayname
 		refs := strings.Split(ref, "/")
 		r := strings.NewReplacer("%20", " ")
-		sharingPath := r.Replace("/" + strings.Join(refs[5:], "/"))
+		sharingPath := r.Replace("/" + strings.Join(refs[5:len(refs)-1], "/") + "/" + displayname)
 		option := apps.SelectOption{Label: sharingPath[1:], Value: sharingPath}
 		fileSelectOptions = append(fileSelectOptions, option)
 	}

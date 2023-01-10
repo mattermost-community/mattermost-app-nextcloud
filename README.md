@@ -37,7 +37,7 @@ https://developers.mattermost.com/integrate/apps/deploy/deploy-aws/
 
 `go run ./cmd/appsctl aws deploy -v bundle-aws.zip`
 
-####Lambda configuration
+#### Lambda configuration
 
 Increase RAM and timeout ( Lambda -> Configuration -> General Configuration)
 
