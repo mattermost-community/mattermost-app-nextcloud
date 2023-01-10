@@ -6,7 +6,6 @@ import (
 	"github.com/prokhorind/nextcloud/function/file"
 	"github.com/prokhorind/nextcloud/function/install"
 	"github.com/prokhorind/nextcloud/function/oauth"
-	"github.com/prokhorind/nextcloud/function/user"
 )
 
 func InitHandlers(r *gin.Engine) {
@@ -20,10 +19,13 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/file-share", file.FileShare)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
-	r.POST("/get-calendar-events-form", calendar.HandleGetCalendarEventsForm)
+	//r.POST("/get-calendar-events-form", calendar.HandleGetCalendarEventsForm)
+	r.POST("/get-calendar-events-today", calendar.HandleGetEventsToday)
+	r.POST("/get-calendar-events-tomorrow", calendar.HandleGetEventsTomorrow)
+	r.POST("/get-calendar-events-select-date-form", calendar.GetUserSelectedEventsDate)
+	r.POST("/get-calendar-events-select-date/:calendar", calendar.HandleGetEventsAtSelectedDay)
 	r.POST("/delete-event/:calendarId/events/:eventId", calendar.HandleDeleteCalendarEvent)
 
-	r.POST("/get-calendar-events", calendar.HandleGetEvents)
 	r.POST("/get-parsed-date", calendar.HandleGetParsedCalendarDate)
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
@@ -34,7 +36,7 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/folder-search", file.SearchFolders)
 	r.POST("/calendars", calendar.HandleGetUserCalendars)
 	r.POST("/users/:userId/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
-	r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
+	//r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
 
 	//r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 }
