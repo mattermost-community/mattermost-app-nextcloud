@@ -52,8 +52,7 @@ func HandleCreateEvent(c *gin.Context) {
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
 	calendarService.CreateEvent(body)
-
-	c.JSON(http.StatusOK, apps.NewTextResponse("event created:"+reqUrl))
+	c.JSON(http.StatusOK, apps.NewTextResponse("event created: "+reqUrl))
 }
 
 func HandleCreateEventForm(c *gin.Context) {
@@ -79,6 +78,9 @@ func HandleCreateEventForm(c *gin.Context) {
 	loc := getMMUserLocation(creq)
 	currentUserTime := time.Now().In(loc)
 
+	dateFormatService := DateFormatLocaleService{}
+	parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
+
 	form := &apps.Form{
 		Title: "Create Nextcloud calendar event",
 		Icon:  "icon.png",
@@ -95,7 +97,7 @@ func HandleCreateEventForm(c *gin.Context) {
 				Label:       "From",
 				IsRequired:  true,
 				Description: "Type \"Today\", \"Tomorrow\" or \"Monday 13:00\" to choose a date",
-				Value:       apps.SelectOption{Label: currentUserTime.Format(time.ANSIC), Value: currentUserTime.String()},
+				Value:       apps.SelectOption{Label: currentUserTime.Format(dateFormatService.GetDateTimeFormatsByLocale(parsedLocale)), Value: currentUserTime.String()},
 				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
 					OAuth2App:             apps.ExpandAll,
@@ -166,85 +168,16 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.NewTextResponse("event deleted :"+eventId))
 }
 
-func HandleGetCalendarEventsForm(c *gin.Context) {
-	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
-
-	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
-
-	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
-
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-
-	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s", remoteUrl, userId)
-
-	accessToken := token.AccessToken
-
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
-
-	option := creq.State.(map[string]interface{})
-	form := &apps.Form{
-		Title: "Nextcloud calendar events",
-		Icon:  "icon.png",
-		Fields: []apps.Field{
-			{
-				Type:       apps.FieldTypeDynamicSelect,
-				Name:       "from-event-date",
-				Label:      "From",
-				IsRequired: true,
-				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
-					ActingUserAccessToken: apps.ExpandAll,
-					OAuth2App:             apps.ExpandAll,
-					OAuth2User:            apps.ExpandAll,
-					Channel:               apps.ExpandAll,
-					ActingUser:            apps.ExpandAll,
-				}),
-			},
-			{
-				Type:       apps.FieldTypeDynamicSelect,
-				Name:       "to-event-date",
-				Label:      "To",
-				IsRequired: true,
-
-				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
-					ActingUserAccessToken: apps.ExpandAll,
-					OAuth2App:             apps.ExpandAll,
-					OAuth2User:            apps.ExpandAll,
-					Channel:               apps.ExpandAll,
-					ActingUser:            apps.ExpandAll,
-				}),
-			},
-
-			{
-				Type:                "static_select",
-				Name:                "calendar",
-				Label:               "Calendar",
-				IsRequired:          true,
-				SelectStaticOptions: calendarService.GetUserCalendars(),
-				Value:               apps.SelectOption{Label: option["label"].(string), Value: option["value"].(string)},
-			},
-		},
-		Submit: apps.NewCall("/get-calendar-events").WithExpand(apps.Expand{
-			ActingUserAccessToken: apps.ExpandAll,
-			OAuth2App:             apps.ExpandAll,
-			OAuth2User:            apps.ExpandAll,
-			Channel:               apps.ExpandAll,
-			ActingUser:            apps.ExpandAll,
-		}),
-	}
-
-	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
-}
-
 func GetUserSelectedEventsDate(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	loc := getMMUserLocation(creq)
 	currentUserTime := time.Now().In(loc)
+
+	dateFormatService := DateFormatLocaleService{}
+	parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
+
 	form := &apps.Form{
 		Title: "Nextcloud calendar events",
 		Icon:  "icon.png",
@@ -255,7 +188,7 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 				Label:       "Date",
 				IsRequired:  true,
 				Description: "Type \"Today\", \"Tomorrow\" or \"Monday 13:00\" to choose a date",
-				Value:       apps.SelectOption{Label: currentUserTime.Format(time.ANSIC), Value: currentUserTime.String()},
+				Value:       apps.SelectOption{Label: currentUserTime.Format(dateFormatService.GetDateTimeFormatsByLocale(parsedLocale)), Value: currentUserTime.String()},
 				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
 					OAuth2App:             apps.ExpandAll,
@@ -371,7 +304,8 @@ func HandleGetEvents(c *gin.Context, creq apps.CallRequest, date time.Time, cale
 
 	for i, e := range dailyCalendarEvents {
 		status := findAttendeeStatus(asBot, e, creq.Context.ActingUser.Id)
-		post := createCalendarEventPost(&e, status, *asBot, calendar, organizerEmail, eventIds[i], userId, loc, creq.Context.OAuth2.RemoteRootURL)
+		postDto := CalendarEventPostDTO{&e, status, *asBot, calendar, organizerEmail, eventIds[i], userId, loc, creq.Context.OAuth2.RemoteRootURL, creq.Context.ActingUser.Locale}
+		post := createCalendarEventPost(&postDto)
 		asBot.DMPost(mmUserId, post)
 	}
 
@@ -395,9 +329,9 @@ func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId strin
 	return ""
 }
 
-func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, bot appclient.Client, calendarId string, organizerEmail string, eventId string, userId string, loc *time.Location, remoteUrl string) *model.Post {
+func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 	var name, description, organizer, eventStatus string
-	for _, e := range event.Properties {
+	for _, e := range postDTO.event.Properties {
 		if e.BaseProperty.IANAToken == "DESCRIPTION" {
 			description = e.BaseProperty.Value
 		}
@@ -412,15 +346,13 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		}
 	}
 
-	start, _ := event.GetStartAt()
-	end, _ := event.GetEndAt()
 	post := model.Post{}
 	commandBinding := apps.Binding{
 		Location: "embedded",
 		AppID:    "nextcloud",
-		Label:    createNameForEvent(name, start, end, remoteUrl, loc),
-		Description: сreateDescriptionForEvent(description, сastSingleEmailToMMUserNickname(organizer, "", bot),
-			сastUserEmailsToMMUserNicknames(event.Attendees(), bot)),
+		Label:    createNameForEvent(name, postDTO),
+		Description: сreateDescriptionForEvent(description, сastSingleEmailToMMUserNickname(organizer, "", postDTO.bot),
+			сastUserEmailsToMMUserNicknames(postDTO.event.Attendees(), postDTO.bot)),
 		Bindings: []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
@@ -440,13 +372,13 @@ func createCalendarEventPost(event *ics.VEvent, status ics.ParticipationStatus, 
 		organizer = strings.Split(organizer, ":")[1]
 	}
 
-	if organizerEmail != organizer {
-		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, calendarId, eventId)
-		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
+	if postDTO.organizerEmail != organizer {
+		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", postDTO.userId, postDTO.calendarId, postDTO.eventId)
+		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(postDTO.status), path)
 	}
 
-	if organizerEmail == organizer {
-		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", calendarId, eventId)
+	if postDTO.organizerEmail == organizer {
+		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", postDTO.calendarId, postDTO.eventId)
 		сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
 	m1 := make(map[string]interface{})
@@ -483,9 +415,14 @@ func сastSingleEmailToMMUserNickname(email string, status string, bot appclient
 	}
 }
 
-func createNameForEvent(name string, start time.Time, finish time.Time, remoteUrl string, loc *time.Location) string {
-	format := "15:04"
-	dayFormat := "Jan 2"
+func createNameForEvent(name string, postDTO *CalendarEventPostDTO) string {
+	dateFormatService := DateFormatLocaleService{}
+	parsedLocale := dateFormatService.GetLocaleByTag(postDTO.locale)
+	start, _ := postDTO.event.GetStartAt()
+	finish, _ := postDTO.event.GetEndAt()
+
+	format := dateFormatService.GetTimeFormatsByLocale(parsedLocale)
+	dayFormat := dateFormatService.GetFullFormatsByLocale(parsedLocale)
 	day := strconv.Itoa(start.Day())
 	month := strconv.Itoa(int(start.Month()))
 	if len(day) < 2 {
@@ -494,8 +431,8 @@ func createNameForEvent(name string, start time.Time, finish time.Time, remoteUr
 	if len(month) < 2 {
 		month = "0" + month
 	}
-	calendarUrl := fmt.Sprintf("%s%s%s-%s-%s", remoteUrl, "/apps/calendar/timeGridDay/", strconv.Itoa(start.Year()), month, day)
-	return fmt.Sprintf("[%s](%s) %s %s-%s", name, calendarUrl, start.In(loc).Format(dayFormat), start.In(loc).Format(format), finish.In(loc).Format(format))
+	calendarUrl := fmt.Sprintf("%s%s%s-%s-%s", postDTO.remoteUrl, "/apps/calendar/timeGridDay/", strconv.Itoa(start.Year()), month, day)
+	return fmt.Sprintf("[%s](%s) %s %s-%s", name, calendarUrl, start.In(postDTO.loc).Format(dayFormat), start.In(postDTO.loc).Format(format), finish.In(postDTO.loc).Format(format))
 }
 
 func сreateDescriptionForEvent(description string, organizer string, attendees string) string {
@@ -607,7 +544,9 @@ func HandleGetParsedCalendarDate(c *gin.Context) {
 	if err != nil || t == nil {
 		so = apps.SelectOption{Label: "", Value: ""}
 	} else {
-		so = apps.SelectOption{Label: t.Format(time.ANSIC), Value: t.String()}
+		dateFormatService := DateFormatLocaleService{}
+		parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
+		so = apps.SelectOption{Label: t.Format(dateFormatService.GetDateTimeFormatsByLocale(parsedLocale)), Value: t.String()}
 	}
 	var soOptions []apps.SelectOption
 	soOptions = append(soOptions, so)
@@ -640,16 +579,16 @@ func HandleGetUserCalendars(c *gin.Context) {
 	asBot := appclient.AsBot(creq.Context)
 	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
-	for i, c := range userCalendars {
+	for _, c := range userCalendars {
 		us := userSettingsService.GetUserSettingsById(creq.Context.ActingUser.Id)
-		post := createCalendarPost(i, c, us.Contains(c.Value))
+		post := createCalendarPost(c, us.Contains(c.Value))
 		asBot.DMPost(creq.Context.ActingUser.Id, post)
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
 
 }
 
-func createCalendarPost(i int, option apps.SelectOption, disabled bool) *model.Post {
+func createCalendarPost(option apps.SelectOption, disabled bool) *model.Post {
 	post := model.Post{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
