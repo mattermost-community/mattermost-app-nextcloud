@@ -28,7 +28,7 @@ type CalendarServiceImpl struct {
 	Token string
 }
 
-func (c CalendarServiceImpl) CreateEvent(body string) {
+func (c CalendarServiceImpl) CreateEvent(body string) (*http.Response, error) {
 
 	req, _ := http.NewRequest("PUT", c.Url, strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/calendar; charset=UTF-8")
@@ -37,8 +37,12 @@ func (c CalendarServiceImpl) CreateEvent(body string) {
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
 	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
 }
 
 func (c CalendarServiceImpl) GetUserCalendars() []apps.SelectOption {

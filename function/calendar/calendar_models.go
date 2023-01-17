@@ -3,6 +3,7 @@ package calendar
 import (
 	"encoding/xml"
 	ics "github.com/arran4/golang-ical"
+	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"time"
 )
@@ -66,14 +67,10 @@ type CalendarEventRequestRange struct {
 }
 
 type CalendarEventPostDTO struct {
-	event          *ics.VEvent
-	status         ics.ParticipationStatus
-	bot            appclient.Client
-	calendarId     string
-	organizerEmail string
-	eventId        string
-	userId         string
-	loc            *time.Location
-	remoteUrl      string
-	locale         string
+	event      *ics.VEvent
+	bot        *appclient.Client
+	calendarId string
+	eventId    string
+	loc        *time.Location
+	creq       apps.CallRequest
 }

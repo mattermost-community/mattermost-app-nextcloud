@@ -51,8 +51,30 @@ func HandleCreateEvent(c *gin.Context) {
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, calendar, uuid)
 
 	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
-	calendarService.CreateEvent(body)
-	c.JSON(http.StatusOK, apps.NewTextResponse("event created: "+reqUrl))
+
+	_, err := calendarService.CreateEvent(body)
+
+	if err != nil {
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Calendar event was not created"})
+		return
+	}
+
+	DMEventPost(creq, calendarService, calendar, uuid)
+	c.JSON(http.StatusOK, apps.NewTextResponse(""))
+}
+
+func DMEventPost(creq apps.CallRequest, calendarService CalendarServiceImpl, calendar string, uuid string) {
+	asBot := appclient.AsBot(creq.Context)
+
+	event := calendarService.GetCalendarEvent()
+	cal, _ := ics.ParseCalendar(strings.NewReader(event))
+	vEvent := cal.Events()[0]
+	loc := getMMUserLocation(creq)
+
+	postDto := CalendarEventPostDTO{vEvent, asBot, calendar, uuid + ".ics", loc, creq}
+	post := createCalendarEventPost(&postDto)
+	mmUserId := creq.Context.ActingUser.Id
+	asBot.DMPost(mmUserId, post)
 }
 
 func HandleCreateEventForm(c *gin.Context) {
@@ -265,7 +287,6 @@ func HandleGetEvents(c *gin.Context, creq apps.CallRequest, date time.Time, cale
 
 	asBot := appclient.AsBot(creq.Context)
 	mmUserId := creq.Context.ActingUser.Id
-	organizerEmail := creq.Context.ActingUser.Email
 
 	from, to := prepareTimeRangeForGetEventsRequest(date)
 	eventRange := CalendarEventRequestRange{
@@ -303,8 +324,7 @@ func HandleGetEvents(c *gin.Context, creq apps.CallRequest, date time.Time, cale
 	}
 
 	for i, e := range dailyCalendarEvents {
-		status := findAttendeeStatus(asBot, e, creq.Context.ActingUser.Id)
-		postDto := CalendarEventPostDTO{&e, status, *asBot, calendar, organizerEmail, eventIds[i], userId, loc, creq.Context.OAuth2.RemoteRootURL, creq.Context.ActingUser.Locale}
+		postDto := CalendarEventPostDTO{&e, asBot, calendar, eventIds[i], loc, creq}
 		post := createCalendarEventPost(&postDto)
 		asBot.DMPost(mmUserId, post)
 	}
@@ -317,16 +337,6 @@ func prepareTimeRangeForGetEventsRequest(chosenDate time.Time) (time.Time, time.
 	date = date.Add(-time.Hour * time.Duration(chosenDate.Hour()))
 	date = date.Add(-time.Second * time.Duration(chosenDate.Second()))
 	return date.AddDate(0, 0, -1), date.AddDate(0, 0, 1)
-}
-
-func findAttendeeStatus(client *appclient.Client, event ics.VEvent, userId string) ics.ParticipationStatus {
-	user, _, _ := client.GetUser(userId, "")
-	for _, a := range event.Attendees() {
-		if user.Email == a.Email() {
-			return a.ParticipationStatus()
-		}
-	}
-	return ""
 }
 
 func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
@@ -351,8 +361,8 @@ func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 		Location: "embedded",
 		AppID:    "nextcloud",
 		Label:    createNameForEvent(name, postDTO),
-		Description: сreateDescriptionForEvent(description, сastSingleEmailToMMUserNickname(organizer, "", postDTO.bot),
-			сastUserEmailsToMMUserNicknames(postDTO.event.Attendees(), postDTO.bot)),
+		Description: сreateDescriptionForEvent(description, сastSingleEmailToMMUserNickname(organizer, "", *postDTO.bot),
+			сastUserEmailsToMMUserNicknames(postDTO.event.Attendees(), *postDTO.bot)),
 		Bindings: []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
@@ -371,13 +381,16 @@ func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 	if strings.Contains(organizer, ":") {
 		organizer = strings.Split(organizer, ":")[1]
 	}
+	organizerEmail := postDTO.creq.Context.ActingUser.Email
+	status := FindAttendeeStatus(postDTO.bot, *postDTO.event, postDTO.creq.Context.ActingUser.Id)
+	userId := postDTO.creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 
-	if postDTO.organizerEmail != organizer {
-		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", postDTO.userId, postDTO.calendarId, postDTO.eventId)
-		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(postDTO.status), path)
+	if organizerEmail != organizer {
+		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, postDTO.calendarId, postDTO.eventId)
+		commandBinding = calendarService.AddButtonsToEvents(commandBinding, string(status), path)
 	}
 
-	if postDTO.organizerEmail == organizer {
+	if organizerEmail == organizer {
 		deletePath := fmt.Sprintf("/delete-event/%s/events/%s", postDTO.calendarId, postDTO.eventId)
 		сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	}
@@ -416,8 +429,9 @@ func сastSingleEmailToMMUserNickname(email string, status string, bot appclient
 }
 
 func createNameForEvent(name string, postDTO *CalendarEventPostDTO) string {
+	locale := postDTO.creq.Context.ActingUser.Locale
 	dateFormatService := DateFormatLocaleService{}
-	parsedLocale := dateFormatService.GetLocaleByTag(postDTO.locale)
+	parsedLocale := dateFormatService.GetLocaleByTag(locale)
 	start, _ := postDTO.event.GetStartAt()
 	finish, _ := postDTO.event.GetEndAt()
 
@@ -431,7 +445,8 @@ func createNameForEvent(name string, postDTO *CalendarEventPostDTO) string {
 	if len(month) < 2 {
 		month = "0" + month
 	}
-	calendarUrl := fmt.Sprintf("%s%s%s-%s-%s", postDTO.remoteUrl, "/apps/calendar/timeGridDay/", strconv.Itoa(start.Year()), month, day)
+	remoteUrl := postDTO.creq.Context.OAuth2.RemoteRootURL
+	calendarUrl := fmt.Sprintf("%s%s%s-%s-%s", remoteUrl, "/apps/calendar/timeGridDay/", strconv.Itoa(start.Year()), month, day)
 	return fmt.Sprintf("[%s](%s) %s %s-%s", name, calendarUrl, start.In(postDTO.loc).Format(dayFormat), start.In(postDTO.loc).Format(format), finish.In(postDTO.loc).Format(format))
 }
 
@@ -523,7 +538,13 @@ func HandleChangeEventStatus(c *gin.Context) {
 	cal, _ := ics.ParseCalendar(strings.NewReader(eventIcs))
 
 	body := calendarService.UpdateAttendeeStatus(cal, user, status)
-	calendarService.CreateEvent(body)
+	_, err := calendarService.CreateEvent(body)
+
+	if err != nil {
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Event status was not updated"})
+		return
+	}
+
 	c.JSON(http.StatusOK, apps.NewTextResponse("event status updated:"+status))
 
 }

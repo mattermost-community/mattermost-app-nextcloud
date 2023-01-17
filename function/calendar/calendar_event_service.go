@@ -57,6 +57,16 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 
 }
 
+func FindAttendeeStatus(client *appclient.Client, event ics.VEvent, userId string) ics.ParticipationStatus {
+	user, _, _ := client.GetUser(userId, "")
+	for _, a := range event.Attendees() {
+		if user.Email == a.Email() {
+			return a.ParticipationStatus()
+		}
+	}
+	return ""
+}
+
 func addAttendeesToEvent(attendee []interface{}, asBot *appclient.Client, event *ics.VEvent) {
 
 	userIds := make([]string, 0)
