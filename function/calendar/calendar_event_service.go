@@ -27,21 +27,9 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 
 	organizerId := c.creq.Context.ActingUser.Id
 
-	attendee := c.creq.Values["attendees"].([]interface{})
-	userIds := make([]string, 0)
-	for _, a := range attendee {
-		attendeeInfo := a.(map[string]interface{})
-		userIds = append(userIds, attendeeInfo["value"].(string))
-	}
-
 	asBot := appclient.AsBot(c.creq.Context)
 
 	organizer, _, _ := asBot.GetUser(organizerId, "")
-	users, _, e := asBot.GetUsersByIds(userIds)
-
-	if e != nil {
-		return "", ""
-	}
 
 	newUUid := uuid.New()
 	id := newUUid.String()
@@ -59,12 +47,29 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 		event.SetDescription(description)
 	}
 	event.SetOrganizer("mailto:"+organizer.Email, ics.WithCN("Owner"))
-	for _, u := range users {
-		event.AddAttendee(u.Email, ics.CalendarUserTypeIndividual, ics.ParticipationStatusNeedsAction, ics.ParticipationRoleReqParticipant, ics.WithRSVP(true))
+
+	if c.creq.Values["attendees"] != nil {
+		addAttendeesToEvent(c.creq.Values["attendees"].([]interface{}), asBot, event)
 	}
+
 	text := cal.Serialize()
 	return id, text
 
+}
+
+func addAttendeesToEvent(attendee []interface{}, asBot *appclient.Client, event *ics.VEvent) {
+
+	userIds := make([]string, 0)
+	for _, a := range attendee {
+		attendeeInfo := a.(map[string]interface{})
+		userIds = append(userIds, attendeeInfo["value"].(string))
+	}
+
+	users, _, _ := asBot.GetUsersByIds(userIds)
+
+	for _, u := range users {
+		event.AddAttendee(u.Email, ics.CalendarUserTypeIndividual, ics.ParticipationStatusNeedsAction, ics.ParticipationRoleReqParticipant, ics.WithRSVP(true))
+	}
 }
 
 func prepareEndDate(from time.Time, duration string) time.Time {

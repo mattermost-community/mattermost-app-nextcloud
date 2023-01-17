@@ -137,7 +137,7 @@ func notifyAllMeetingUsersAboutUpdate(event *CalendarEventDto, bot appclient.Cli
 		Location: "embedded",
 		AppID:    "nextcloud",
 		Label:    fmt.Sprintf("%s %s-%s  %s %s", timezone, start, end, event.Summary, a.ParticipationStatus()),
-		Description: fmt.Sprintf("Organizer %s Description: %s Attendies %s",
+		Description: fmt.Sprintf("Organizer %s Description: %s Attendees %s",
 			castEmailToMMUsername(event.OrganizerEmail, bot), event.Description, prepareAllAttendeesUsernames(event.Attendees, bot)),
 		Bindings: []apps.Binding{},
 	}
@@ -178,7 +178,7 @@ func createPostWithBindings(event *CalendarEventDto, attendee *ics.Attendee, bot
 		Location: "embedded",
 		AppID:    "nextcloud",
 		Label:    fmt.Sprintf("%s %s-%s  %s %s", timezone, start, end, event.Summary, status),
-		Description: fmt.Sprintf("Organizer %s Description: %s Attendies %s",
+		Description: fmt.Sprintf("Organizer %s Description: %s Attendees %s",
 			castEmailToMMUsername(event.OrganizerEmail, bot), event.Description, prepareAllAttendeesUsernames(event.Attendees, bot)),
 		Bindings: []apps.Binding{},
 	}

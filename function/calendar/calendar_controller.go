@@ -125,7 +125,7 @@ func HandleCreateEventForm(c *gin.Context) {
 				Type:          apps.FieldTypeUser,
 				Name:          "attendees",
 				Label:         "Attendees",
-				IsRequired:    true,
+				IsRequired:    false,
 				SelectIsMulti: true,
 			},
 
@@ -443,7 +443,7 @@ func сreateDescriptionForEvent(description string, organizer string, attendees 
 	}
 	finalDesc += fmt.Sprintf("Organized by %s. ", organizer[:len(organizer)-1])
 	if len(attendees) != 0 {
-		finalDesc += fmt.Sprintf("Attendies: %s. ", attendees)
+		finalDesc += fmt.Sprintf("Attendees: %s. ", attendees)
 	}
 
 	return finalDesc

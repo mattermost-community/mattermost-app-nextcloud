@@ -3,7 +3,6 @@ package install
 import (
 	_ "embed"
 	"encoding/json"
-	"github.com/mattermost/mattermost-server/v6/model"
 	"net/http"
 	"os"
 
@@ -92,21 +91,21 @@ func Bindings(c *gin.Context) {
 					ActingUser:            apps.ExpandAll,
 				}),
 			})
-		if creq.Context.ExpandedContext.Channel != nil && model.ChannelTypeDirect == creq.Context.ExpandedContext.Channel.Type {
-			commandBinding.Bindings = append(commandBinding.Bindings,
-				apps.Binding{
-					Location: "calendars",
-					Label:    "calendars",
 
-					Submit: apps.NewCall("/calendars").WithExpand(apps.Expand{
-						ActingUserAccessToken: apps.ExpandAll,
-						OAuth2App:             apps.ExpandAll,
-						OAuth2User:            apps.ExpandAll,
-						Channel:               apps.ExpandAll,
-						ActingUser:            apps.ExpandAll,
-					}),
-				})
-		}
+		commandBinding.Bindings = append(commandBinding.Bindings,
+			apps.Binding{
+				Location: "calendars",
+				Label:    "calendars",
+
+				Submit: apps.NewCall("/calendars").WithExpand(apps.Expand{
+					ActingUserAccessToken: apps.ExpandAll,
+					OAuth2App:             apps.ExpandAll,
+					OAuth2User:            apps.ExpandAll,
+					Channel:               apps.ExpandAll,
+					ActingUser:            apps.ExpandAll,
+				}),
+			})
+
 	}
 
 	if creq.Context.ActingUser.IsSystemAdmin() {
