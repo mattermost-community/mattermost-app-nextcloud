@@ -172,6 +172,11 @@ func HandleCreateEventForm(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
 }
 
+func DoNothing(c *gin.Context) {
+	c.JSON(http.StatusOK, apps.NewTextResponse(""))
+	return
+}
+
 func HandleDeleteCalendarEvent(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
@@ -340,11 +345,8 @@ func prepareTimeRangeForGetEventsRequest(chosenDate time.Time) (time.Time, time.
 }
 
 func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
-	var name, description, organizer, eventStatus string
+	var name, organizer, eventStatus string
 	for _, e := range postDTO.event.Properties {
-		if e.BaseProperty.IANAToken == "DESCRIPTION" {
-			description = e.BaseProperty.Value
-		}
 		if e.BaseProperty.IANAToken == "ORGANIZER" {
 			organizer = e.BaseProperty.Value
 		}
@@ -358,14 +360,20 @@ func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 
 	post := model.Post{}
 	commandBinding := apps.Binding{
-		Location: "embedded",
-		AppID:    "nextcloud",
-		Label:    createNameForEvent(name, postDTO),
-		Description: сreateDescriptionForEvent(description, сastSingleEmailToMMUserNickname(organizer, "", *postDTO.bot),
-			сastUserEmailsToMMUserNicknames(postDTO.event.Attendees(), *postDTO.bot)),
-		Bindings: []apps.Binding{},
+		Location:    "embedded",
+		AppID:       "nextcloud",
+		Label:       createNameForEvent(name, postDTO),
+		Description: "Going?",
+		Bindings:    []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
+	userId := postDTO.creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
+	remoteUrl := postDTO.creq.Context.OAuth2.OAuth2App.RemoteRootURL
+	uuid := postDTO.event.GetProperty(ics.ComponentPropertyUniqueId).Value
+
+	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, postDTO.calendarId, uuid)
+
+	сreateViewButton(&commandBinding, "view-details", organizer, "View Details", postDTO, name, reqUrl)
 
 	if eventStatus == "CANCELLED" {
 		commandBinding.Label = fmt.Sprintf("~~%s~~", commandBinding.Label)
@@ -383,7 +391,6 @@ func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 	}
 	organizerEmail := postDTO.creq.Context.ActingUser.Email
 	status := FindAttendeeStatus(postDTO.bot, *postDTO.event, postDTO.creq.Context.ActingUser.Id)
-	userId := postDTO.creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 
 	if organizerEmail != organizer {
 		path := fmt.Sprintf("/users/%s/calendars/%s/events/%s/status", userId, postDTO.calendarId, postDTO.eventId)
@@ -422,10 +429,31 @@ func сastSingleEmailToMMUserNickname(email string, status string, bot appclient
 		if status == "" {
 			return "@" + mmUser.Username + " "
 		}
-		return "@" + mmUser.Username + " - " + status + " "
+		return "@" + mmUser.Username + "-" + status + " "
 	} else {
-		return email + " - " + " "
+		return email + "-" + status + " "
 	}
+}
+
+func createDateForEventInForm(postDTO *CalendarEventPostDTO) string {
+	locale := postDTO.creq.Context.ActingUser.Locale
+	dateFormatService := DateFormatLocaleService{}
+	parsedLocale := dateFormatService.GetLocaleByTag(locale)
+	start, _ := postDTO.event.GetStartAt()
+	finish, _ := postDTO.event.GetEndAt()
+
+	format := dateFormatService.GetTimeFormatsByLocale(parsedLocale)
+	dayFormat := dateFormatService.GetFullFormatsByLocale(parsedLocale)
+	day := strconv.Itoa(start.Day())
+	month := strconv.Itoa(int(start.Month()))
+	if len(day) < 2 {
+		day = "0" + day
+	}
+	if len(month) < 2 {
+		month = "0" + month
+	}
+
+	return fmt.Sprintf("%s %s-%s", start.In(postDTO.loc).Format(dayFormat), start.In(postDTO.loc).Format(format), finish.In(postDTO.loc).Format(format))
 }
 
 func createNameForEvent(name string, postDTO *CalendarEventPostDTO) string {
@@ -505,11 +533,79 @@ func сreateDeleteButton(commandBinding *apps.Binding, location apps.Location, l
 		ActingUser:            apps.ExpandAll,
 	}
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-
 		Location: location,
 		Label:    label,
 		Submit:   apps.NewCall(deletePath).WithExpand(expand),
 	})
+}
+
+func сreateViewButton(commandBinding *apps.Binding, location apps.Location, organizer string, label string, postDTO *CalendarEventPostDTO, name string, reqUrl string) {
+	event := postDTO.event
+	bot := postDTO.bot
+	property := event.GetProperty(ics.ComponentPropertyDescription)
+	var description string
+	if property == nil {
+		description = ""
+	}
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: location,
+		Label:    label,
+		Form: &apps.Form{
+			Title: name,
+			Fields: []apps.Field{
+				{
+					Type:       apps.FieldTypeText,
+					Name:       "Date",
+					Label:      "Date",
+					ReadOnly:   true,
+					Value:      createDateForEventInForm(postDTO),
+					IsRequired: true,
+				},
+				{
+					Type:        apps.FieldTypeText,
+					Name:        "Description",
+					Label:       "Description",
+					ReadOnly:    true,
+					Value:       description,
+					TextSubtype: apps.TextFieldSubtypeTextarea,
+				},
+				{
+					Type:                apps.FieldTypeStaticSelect,
+					Name:                "Attendees",
+					Label:               "Attendees",
+					SelectIsMulti:       true,
+					Value:               prepareAttendeeStaticSelect(сastUserEmailsToMMUserNicknames(event.Attendees(), *bot)),
+					SelectStaticOptions: prepareAttendeeStaticSelect(сastUserEmailsToMMUserNicknames(event.Attendees(), *bot)),
+				},
+				{
+					Type:       apps.FieldTypeText,
+					Name:       "Organizer",
+					Label:      "Organizer",
+					ReadOnly:   true,
+					IsRequired: true,
+					Value:      сastSingleEmailToMMUserNickname(organizer, "", *bot),
+				},
+				{
+					Type:        apps.FieldTypeText,
+					Name:        "Url",
+					Label:       "Url",
+					Value:       reqUrl,
+					ReadOnly:    true,
+					IsRequired:  true,
+					TextSubtype: apps.TextFieldSubtypeURL,
+				},
+			},
+			Submit: apps.NewCall("/do-nothing"),
+		},
+	})
+}
+
+func prepareAttendeeStaticSelect(attendees string) []apps.SelectOption {
+	options := make([]apps.SelectOption, 0)
+	for _, a := range strings.Split(attendees, " ") {
+		options = append(options, apps.SelectOption{Label: a, Value: a})
+	}
+	return options
 }
 
 func HandleChangeEventStatus(c *gin.Context) {
