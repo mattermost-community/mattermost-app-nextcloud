@@ -546,6 +546,8 @@ func сreateViewButton(commandBinding *apps.Binding, location apps.Location, org
 	var description string
 	if property == nil {
 		description = ""
+	} else {
+		description = property.Value
 	}
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
 		Location: location,
