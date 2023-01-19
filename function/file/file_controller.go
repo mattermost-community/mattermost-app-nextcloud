@@ -73,22 +73,7 @@ func FileUploadForm(c *gin.Context) {
 
 	body := createSearchRequestBody(userId, "")
 	resp := sendFileSearchRequest(url, body, token.AccessToken)
-	folderSelectOptions := make([]apps.SelectOption, 0)
-	for _, f := range resp.FileResponse {
-		hasContentType := false
-
-		for _, p := range f.PropertyStats {
-			if len(p.Property.Getcontenttype) != 0 {
-				hasContentType = true
-				break
-			}
-		}
-		if !hasContentType {
-			split := strings.Split(f.Href, "/remote.php/dav/files/"+userId)[1]
-			option := apps.SelectOption{Label: split[1 : len(split)-1], Value: split}
-			folderSelectOptions = append(folderSelectOptions, option)
-		}
-	}
+	folderSelectOptions, rootSelectOption := CreateFolderSelectOptions(resp, userId, "Root", "/")
 
 	fileSelectOptions := make([]apps.SelectOption, 0)
 	fileInfos, _, _ := asActingUser.GetFileInfosForPost(creq.Context.Post.Id, "")
@@ -97,8 +82,6 @@ func FileUploadForm(c *gin.Context) {
 		option := apps.SelectOption{Label: fi.Name, Value: fi.Id}
 		fileSelectOptions = append(fileSelectOptions, option)
 	}
-	rootSelectOption := apps.SelectOption{Label: "Root", Value: "/"}
-	folderSelectOptions = append(folderSelectOptions, rootSelectOption)
 
 	sort.Slice(folderSelectOptions, func(i, j int) bool {
 		return folderSelectOptions[i].Label < folderSelectOptions[j].Label
@@ -153,47 +136,67 @@ func FileShareForm(c *gin.Context) {
 	asActingUser.StoreOAuth2User(token)
 	accessToken := token.AccessToken
 
-	fileName := creq.Values["file_name"].(string)
+	var folderName string
+	if creq.Values["Folder"] == nil {
+		folderName = ""
+	} else {
+		folderName = creq.Values["Folder"].(map[string]interface{})["value"].(string)
+	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
 
-	body := createSearchRequestBody(userId, fileName)
-	resp := sendFileSearchRequest(url, body, accessToken)
+	fileSearchBody := createSearchRequestBody(userId+folderName, "")
+	FileSearchResp := sendFileSearchRequest(url, fileSearchBody, accessToken)
 
-	files := resp.FileResponse
-	fileSelectOptions := make([]apps.SelectOption, 0)
-
-	for _, f := range files {
-		ref := f.Href
-		displayname := f.PropertyStats[0].Property.Displayname
-		refs := strings.Split(ref, "/")
-		r := strings.NewReplacer("%20", " ")
-
-		var sharingPath string
-		if len(refs) > 6 {
-			sharingPath = r.Replace("/" + strings.Join(refs[5:len(refs)-1], "/") + "/" + displayname)
-		} else {
-			sharingPath = "/" + displayname
-		}
-
-		option := apps.SelectOption{Label: sharingPath[1:], Value: sharingPath}
-		fileSelectOptions = append(fileSelectOptions, option)
-	}
+	files := FileSearchResp.FileResponse
 
 	if len(files) == 0 {
-		c.JSON(http.StatusOK, apps.NewTextResponse("File %s not found check the file name and try again", fileName))
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Files not found"})
 		return
+	}
+
+	fileSelectOptions := CreateFileSelectOptions(files)
+
+	folderSearchBody := createSearchRequestBody(userId, "")
+	folderSearchResp := sendFileSearchRequest(url, folderSearchBody, accessToken)
+	folderSelectOptions, defaultSelectOption := CreateFolderSelectOptions(folderSearchResp, userId, "All files", "")
+
+	if creq.Values["Folder"] != nil {
+		for _, so := range folderSelectOptions {
+			if folderName == so.Value {
+				defaultSelectOption = so
+				break
+			}
+		}
+	}
+
+	if len(fileSelectOptions) == 0 {
+		option := apps.SelectOption{Label: "", Value: ""}
+		fileSelectOptions = append(fileSelectOptions, option)
 	}
 
 	sort.Slice(fileSelectOptions, func(i, j int) bool {
 		return fileSelectOptions[i].Label < fileSelectOptions[j].Label
 	})
 
+	sort.Slice(folderSelectOptions, func(i, j int) bool {
+		return folderSelectOptions[i].Label < folderSelectOptions[j].Label
+	})
+
 	form := &apps.Form{
 		Title: "File share ",
 		Icon:  "icon.png",
 		Fields: []apps.Field{
+			{
+				Type:                "static_select",
+				Name:                "Folder",
+				Label:               "Folder",
+				IsRequired:          true,
+				SelectRefresh:       true,
+				SelectStaticOptions: folderSelectOptions,
+				Value:               defaultSelectOption,
+			},
 			{
 				Type:                "static_select",
 				Name:                "Files",
@@ -203,6 +206,13 @@ func FileShareForm(c *gin.Context) {
 				SelectStaticOptions: fileSelectOptions,
 			},
 		},
+		Source: apps.NewCall("/file/search/form").WithExpand(apps.Expand{
+			ActingUserAccessToken: apps.ExpandAll,
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			Channel:               apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}),
 		Submit: apps.NewCall("/file-share").WithExpand(apps.Expand{
 			ActingUserAccessToken: apps.ExpandAll,
 			OAuth2App:             apps.ExpandAll,

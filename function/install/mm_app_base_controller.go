@@ -58,31 +58,19 @@ func Bindings(c *gin.Context) {
 			}),
 		})
 	} else {
-		commandBinding.Bindings = append(commandBinding.Bindings,
-			apps.Binding{
-				Location: "share",
-				Label:    "share",
-				Form: &apps.Form{
-					Title: "Share Nextcloud file",
-					Icon:  "icon.png",
-					Fields: []apps.Field{
-						{
-							Type:       apps.FieldTypeText,
-							Name:       "file_name",
-							Label:      "file-name",
-							IsRequired: true,
-						},
-					},
-					Submit: apps.NewCall("/file/search/form").WithExpand(apps.Expand{
-						OAuth2App:             apps.ExpandAll,
-						OAuth2User:            apps.ExpandAll,
-						Channel:               apps.ExpandAll,
-						ActingUserAccessToken: apps.ExpandAll,
-						ActingUser:            apps.ExpandAll,
-					}),
-				},
-			},
+		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+			Location: "share",
+			Label:    "share",
+			Submit: apps.NewCall("/file/search/form").WithExpand(apps.Expand{
+				OAuth2App:             apps.ExpandAll,
+				OAuth2User:            apps.ExpandAll,
+				ActingUserAccessToken: apps.ExpandAll,
+				ActingUser:            apps.ExpandAll,
+				Channel:               apps.ExpandAll,
+			}),
+		})
 
+		commandBinding.Bindings = append(commandBinding.Bindings,
 			apps.Binding{
 				Location: "disconnect",
 				Label:    "disconnect",
