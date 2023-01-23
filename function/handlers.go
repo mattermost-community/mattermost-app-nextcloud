@@ -19,7 +19,6 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/file-share", file.FileShare)
 	r.POST("/create-calendar-event", calendar.HandleCreateEvent)
 	r.POST("/create-calendar-event-form", calendar.HandleCreateEventForm)
-	//r.POST("/get-calendar-events-form", calendar.HandleGetCalendarEventsForm)
 	r.POST("/get-calendar-events-today", calendar.HandleGetEventsToday)
 	r.POST("/get-calendar-events-tomorrow", calendar.HandleGetEventsTomorrow)
 	r.POST("/get-calendar-events-select-date-form", calendar.GetUserSelectedEventsDate)
@@ -30,14 +29,13 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/get-parsed-date", calendar.HandleGetParsedCalendarDate)
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
-	r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
-	r.POST("/webhook/calendar-event-updated", calendar.HandleWebhookUpdateEvent)
+	//r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
+	//r.POST("/webhook/calendar-event-updated", calendar.HandleWebhookUpdateEvent)
+	//r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
+	//r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 
 	r.POST("/ping", install.Ping)
 	r.POST("/folder-search", file.SearchFolders)
 	r.POST("/calendars", calendar.HandleGetUserCalendars)
 	r.POST("/users/:userId/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
-	//r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
-
-	//r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 }

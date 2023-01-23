@@ -6,6 +6,7 @@ services:
       - STATIC_FOLDER=static
       - APP_TYPE=HTTP
       - CHUNK_FILE_SIZE_MB=1
+      - MAX_FILE_SIZE_MB=50
       - APP_URL=http://localhost:8082
       - PORT=8082
 

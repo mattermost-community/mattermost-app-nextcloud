@@ -4,15 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/prokhorind/nextcloud/function/oauth"
 	log "github.com/sirupsen/logrus"
 	"net/http"
-	"os"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -160,7 +157,7 @@ func FileShareForm(c *gin.Context) {
 
 	folderSearchBody := createSearchRequestBody(userId, "")
 	folderSearchResp := sendFileSearchRequest(url, folderSearchBody, accessToken)
-	folderSelectOptions, defaultSelectOption := CreateFolderSelectOptions(folderSearchResp, userId, "All files", "")
+	folderSelectOptions, defaultSelectOption := CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
 
 	if creq.Values["Folder"] != nil {
 		for _, so := range folderSelectOptions {
@@ -261,78 +258,16 @@ func FileUpload(c *gin.Context) {
 	asActingUser := appclient.AsActingUser(creq.Context)
 	asActingUser.StoreOAuth2User(token)
 
-	folder := creq.Values["Folder"].(map[string]interface{})["value"].(string)
-
 	files := creq.Values["Files"].([]interface{})
-
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-
-	fileUrl := fmt.Sprintf("%s%s%s%s", remoteUrl, "/remote.php/dav/files/", userId, folder)
 
 	asBot := appclient.AsBot(creq.Context)
 	AddBot(creq)
-	var uploadedFiles []string
-
-	for _, file := range files {
-		f := file.(map[string]interface{})["value"].(string)
-
-		fileInfo, _, err := asBot.GetFileInfo(f)
-
-		if err != nil {
-			log.Errorf("Could not get file info for file %s with error %s", f, err.Error())
-
-			continue
-		}
-
-		chunkFileSize, _ := strconv.Atoi(os.Getenv("CHUNK_FILE_SIZE_MB"))
-
-		chunkFileSizeInBytes := int64(chunkFileSize * 1024 * 1024)
-
-		destination := fmt.Sprintf("%s%s", fileUrl, fileInfo.Name)
-		if fileInfo.Size <= chunkFileSizeInBytes {
-			log.Info("Full file uploading")
-			file, _, err := asBot.GetFile(f)
-			if err != nil {
-				log.Errorf("File was not downloaded from MM %s with error %s", f, err.Error())
-				continue
-			}
-			fileService := FileServiceImpl{Url: destination, Token: token.AccessToken}
-			_, uploadError := fileService.UploadFile(file)
-			if uploadError != nil {
-				log.Errorf("File %s was not auploaded to NC  with error %s", fileInfo.Id, err.Error())
-			} else {
-				uploadedFiles = append(uploadedFiles, fileInfo.Name)
-				log.Infof("file was uploaded %s", fileInfo.Name)
-
-			}
-		} else {
-			log.Info("Chunk file uploading")
-			chunkFolder := fmt.Sprintf("/%s-%s", "temp", uuid.New().String())
-			chunkUrl := fmt.Sprintf("%s%s%s%s", remoteUrl, "/remote.php/dav/uploads/", userId, chunkFolder)
-			mmfileUrl := fmt.Sprintf("%s/%s/%s", creq.Context.MattermostSiteURL, "api/v4/files", fileInfo.Id)
-			fileService := FileChunkServiceImpl{BaseUrl: chunkUrl, Token: token.AccessToken}
-			_, err := fileService.createChunkFolder()
-
-			if err != nil {
-				log.Errorf("Chunk folder was not created %s", err.Error())
-				continue
-			}
-
-			allChunksUpload := uploadChunks(chunkFileSizeInBytes, fileInfo, mmfileUrl, creq, fileService)
-
-			if allChunksUpload {
-				_, err := fileService.assembleChunk(destination)
-
-				if err != nil {
-					log.Errorf("Chunk was not assembled to NC destination %s with error %s", destination, err.Error())
-				} else {
-					uploadedFiles = append(uploadedFiles, fileInfo.Name)
-					log.Infof("file was uploaded %s", destination)
-				}
-			}
-		}
-
+	validFiles, errMsg := ValidateFiles(asBot, files)
+	if !validFiles {
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: *errMsg})
+		return
 	}
+
+	uploadedFiles := UploadFiles(creq, files, asBot, token)
 	c.JSON(http.StatusOK, apps.NewTextResponse("Uploaded files:  %s", strings.Join(uploadedFiles, ",")))
 }
