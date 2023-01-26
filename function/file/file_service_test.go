@@ -22,6 +22,9 @@ func (mock Client4Mock) GetFileInfo(fileId string) (*model.FileInfo, *model.Resp
 func TestFileSizeIsValid(t *testing.T) {
 	os.Setenv("MAX_FILE_SIZE_MB", "1")
 	defer os.Unsetenv("MAX_FILE_SIZE_MB")
+	os.Setenv("MAX_FILES_SIZE_MB", "2")
+	defer os.Unsetenv("MAX_FILES_SIZE_MB")
+
 	model := model.NewInfo("name")
 	model.Size = 1024
 	mock := Client4Mock{fileInfo: model}
@@ -40,8 +43,11 @@ func TestFileSizeIsValid(t *testing.T) {
 }
 
 func TestFileSizeIsNotValid(t *testing.T) {
+	os.Setenv("MAX_FILES_SIZE_MB", "2")
+	defer os.Unsetenv("MAX_FILES_SIZE_MB")
 	os.Setenv("MAX_FILE_SIZE_MB", "1")
 	defer os.Unsetenv("MAX_FILE_SIZE_MB")
+
 	fileInfo := model.NewInfo("name")
 	fileInfo.Size = 1024 * 1025
 	mock := Client4Mock{fileInfo: fileInfo}
@@ -49,6 +55,32 @@ func TestFileSizeIsNotValid(t *testing.T) {
 		"value": "name",
 	}
 	var arr []interface{}
+	arr = append(arr, m)
+
+	testedInstance := FileUploadServiceImpl{}
+	isValid, _ := testedInstance.ValidateFiles(mock, arr)
+
+	if isValid {
+		t.Error("Validation should fail")
+	}
+}
+
+func TestFilesSizeIsNotValid(t *testing.T) {
+	os.Setenv("MAX_FILES_SIZE_MB", "2")
+	defer os.Unsetenv("MAX_FILES_SIZE_MB")
+	os.Setenv("MAX_FILE_SIZE_MB", "1")
+	defer os.Unsetenv("MAX_FILE_SIZE_MB")
+
+	fileInfo := model.NewInfo("name")
+	fileInfo.Size = 1024 * 1024
+	mock := Client4Mock{fileInfo: fileInfo}
+	m := map[string]interface{}{
+		"value": "name",
+	}
+
+	var arr []interface{}
+	arr = append(arr, m)
+	arr = append(arr, m)
 	arr = append(arr, m)
 
 	testedInstance := FileUploadServiceImpl{}

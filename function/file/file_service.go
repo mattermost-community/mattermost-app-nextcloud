@@ -27,6 +27,14 @@ type FileUploadServiceImpl struct {
 }
 
 func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files []interface{}) (bool, *string) {
+	maxFileSizeString := os.Getenv("MAX_FILE_SIZE_MB")
+	maxFileSize, _ := strconv.Atoi(maxFileSizeString)
+	maxFileSizeInBytes := int64(maxFileSize * 1024 * 1024)
+
+	maxFilesSizeString := os.Getenv("MAX_FILES_SIZE_MB")
+	maxFilesSize, _ := strconv.Atoi(maxFilesSizeString)
+	maxFilesSizeInBytes := int64(maxFilesSize * 1024 * 1024)
+	var filesSize int64
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
 
@@ -37,10 +45,12 @@ func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files [
 			log.Error(errorMsg)
 			return false, &errorMsg
 		}
-
-		maxFileSizeString := os.Getenv("MAX_FILE_SIZE_MB")
-		maxFileSize, _ := strconv.Atoi(maxFileSizeString)
-		maxFileSizeInBytes := int64(maxFileSize * 1024 * 1024)
+		filesSize = filesSize + fileInfo.Size
+		if filesSize > maxFilesSizeInBytes {
+			msg := fmt.Sprintf("Size of uploading files above %s MB cannot be uploaded", maxFilesSizeString)
+			log.Error(msg)
+			return false, &msg
+		}
 
 		if fileInfo.Size > maxFileSizeInBytes {
 			msg := fmt.Sprintf("File above %s MB cannot be uploaded: %s", maxFileSizeString, fileInfo.Name)
@@ -90,7 +100,6 @@ func (fileUpload FileUploadServiceImpl) chunkFileUpload(creq apps.CallRequest, f
 		log.Errorf("Chunk folder was not created %s", err.Error())
 		return uploadedFiles
 	}
-	//chunkUploadService := ChunkFileUploadServiceImpl{ fileUpload.chunkService, fileUpload.mmFileService}
 	allChunksUpload := fileUpload.fileChunkUploadService.uploadChunks(chunkFileSizeInBytes, fileInfo, chunkUrl, mmfileUrl)
 
 	if allChunksUpload {
