@@ -15,7 +15,7 @@ type FileSharesInfo struct {
 }
 
 func (s FileSharesInfo) GetSharesInfo(filePath string, shareType int32) (*FileShareModel, error) {
-	shares, err := s.shareService.getAllUserShares()
+	shares, err := s.shareService.GetAllUserShares()
 
 	if err != nil {
 		return nil, err
@@ -27,12 +27,12 @@ func (s FileSharesInfo) GetSharesInfo(filePath string, shareType int32) (*FileSh
 		}
 	}
 
-	return s.shareService.createUserShare(filePath, shareType)
+	return s.shareService.CreateUserShare(filePath, shareType)
 }
 
 type FileShareService interface {
-	getAllUserShares() (*SharedFilesResponseBody, error)
-	createUserShare(filePath string, shareType int32) (*FileShareModel, error)
+	GetAllUserShares() (*SharedFilesResponseBody, error)
+	CreateUserShare(filePath string, shareType int32) (*FileShareModel, error)
 }
 
 type FileShareServiceImpl struct {
@@ -40,7 +40,7 @@ type FileShareServiceImpl struct {
 	Token string
 }
 
-func (s FileShareServiceImpl) getAllUserShares() (*SharedFilesResponseBody, error) {
+func (s FileShareServiceImpl) GetAllUserShares() (*SharedFilesResponseBody, error) {
 
 	req, _ := http.NewRequest("GET", s.Url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
@@ -60,7 +60,7 @@ func (s FileShareServiceImpl) getAllUserShares() (*SharedFilesResponseBody, erro
 	return &xmlResp, err
 }
 
-func (s FileShareServiceImpl) createUserShare(filePath string, shareType int32) (*FileShareModel, error) {
+func (s FileShareServiceImpl) CreateUserShare(filePath string, shareType int32) (*FileShareModel, error) {
 	payload := FileShareRequestBody{filePath, shareType}
 	body, _ := json.Marshal(payload)
 

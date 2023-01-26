@@ -14,7 +14,7 @@ type FileFullUploadServiceImpl struct {
 	Token string
 }
 
-func (s FileFullUploadServiceImpl) UploadFile(file []byte, url string) (*http.Response, error) {
+func (s *FileFullUploadServiceImpl) UploadFile(file []byte, url string) (*http.Response, error) {
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(file))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
 

@@ -271,11 +271,11 @@ func FileUpload(c *gin.Context) {
 	asBot := appclient.AsBot(creq.Context)
 	botService := user.BotServiceImpl{Creq: creq}
 	botService.AddBot()
-	fileService := FileFullUploadServiceImpl{token.AccessToken}
 	chunkFileService := FileChunkServiceImpl{Token: token.AccessToken}
 	mmFileService := MMFileServiceImpl{creq.Context.BotAccessToken}
-	chunkUploadService := ChunkFileUploadServiceImpl{chunkFileService, mmFileService}
-	fileUploadService := FileUploadServiceImpl{fileService, chunkUploadService}
+	chunkUploadService := ChunkFileUploadServiceImpl{&chunkFileService, mmFileService}
+	fileService := FileFullUploadServiceImpl{token.AccessToken}
+	fileUploadService := FileUploadServiceImpl{&fileService, &chunkUploadService}
 
 	validFiles, errMsg := fileUploadService.ValidateFiles(asBot, files)
 	if !validFiles {

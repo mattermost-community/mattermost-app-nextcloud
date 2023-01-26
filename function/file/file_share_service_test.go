@@ -9,7 +9,7 @@ type FileShareServiceTestMock struct {
 	Token string
 }
 
-func (s FileShareServiceTestMock) getAllUserShares() (*SharedFilesResponseBody, error) {
+func (s FileShareServiceTestMock) GetAllUserShares() (*SharedFilesResponseBody, error) {
 	responseBody := SharedFilesResponseBody{}
 	model := FileShareModel{Path: "/test-path"}
 	oneSlice := []FileShareModel{model}
@@ -17,7 +17,7 @@ func (s FileShareServiceTestMock) getAllUserShares() (*SharedFilesResponseBody, 
 	return &responseBody, nil
 }
 
-func (s FileShareServiceTestMock) createUserShare(filePath string, shareType int32) (*FileShareModel, error) {
+func (s FileShareServiceTestMock) CreateUserShare(filePath string, shareType int32) (*FileShareModel, error) {
 	return &FileShareModel{Path: filePath, ShareType: string(shareType)}, nil
 }
 

@@ -19,7 +19,7 @@ type FileChunkServiceImpl struct {
 	Token string
 }
 
-func (f FileChunkServiceImpl) createChunkFolder(url string) (*http.Response, error) {
+func (f *FileChunkServiceImpl) createChunkFolder(url string) (*http.Response, error) {
 	req, _ := http.NewRequest("MKCOL", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 
@@ -34,7 +34,7 @@ func (f FileChunkServiceImpl) createChunkFolder(url string) (*http.Response, err
 	return resp, err
 }
 
-func (f FileChunkServiceImpl) uploadFileChunk(file []byte, start string, end string, baseurl string) (*http.Response, error) {
+func (f *FileChunkServiceImpl) uploadFileChunk(file []byte, start string, end string, baseurl string) (*http.Response, error) {
 	url := fmt.Sprintf("%s/%s-%s", baseurl, start, end)
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(file))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
@@ -48,7 +48,7 @@ func (f FileChunkServiceImpl) uploadFileChunk(file []byte, start string, end str
 	return resp, err
 }
 
-func (f FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http.Response, error) {
+func (f *FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http.Response, error) {
 	url := fmt.Sprintf("%s/.file", baseurl)
 	req, _ := http.NewRequest("MOVE", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
@@ -65,7 +65,7 @@ func (f FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http.
 	return resp, err
 }
 
-func (f FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, error) {
+func (f *FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, error) {
 	req, _ := http.NewRequest("DELETE", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 
@@ -81,11 +81,21 @@ func (f FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, erro
 
 type ChunkFileUploadService interface {
 	uploadChunks(chunkFileSizeInBytes int64, fileInfo *model.FileInfo, url string, mmfileUrl string) bool
+	getFileChunkService() FileChunkService
+	getMMFileService() MMFileService
 }
 
 type ChunkFileUploadServiceImpl struct {
 	fileChunkService FileChunkService
 	MMFileService    MMFileService
+}
+
+func (s ChunkFileUploadServiceImpl) getFileChunkService() FileChunkService {
+	return s.fileChunkService
+}
+
+func (s ChunkFileUploadServiceImpl) getMMFileService() MMFileService {
+	return s.MMFileService
 }
 
 func (s ChunkFileUploadServiceImpl) uploadChunks(chunkFileSizeInBytes int64, fileInfo *model.FileInfo, url string, mmfileUrl string) bool {

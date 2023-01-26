@@ -16,6 +16,11 @@ type GetFileInfo interface {
 	GetFileInfo(fileId string) (*model.FileInfo, *model.Response, error)
 }
 
+type GetFile interface {
+	GetFileInfo
+	GetFile(fileId string) ([]byte, *model.Response, error)
+}
+
 type FilesUploadService interface {
 	ValidateFiles(asBot *appclient.Client, files []interface{}) (bool, *string)
 	UploadFiles(creq apps.CallRequest, files []interface{}, asBot *appclient.Client, token oauth.Token) []string
@@ -23,7 +28,7 @@ type FilesUploadService interface {
 
 type FileUploadServiceImpl struct {
 	fileFullUploadService  FileFullUploadService
-	fileChunkUploadService ChunkFileUploadServiceImpl
+	fileChunkUploadService ChunkFileUploadService
 }
 
 func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files []interface{}) (bool, *string) {
@@ -62,7 +67,7 @@ func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files [
 	return true, nil
 }
 
-func (fileUpload FileUploadServiceImpl) UploadFiles(creq apps.CallRequest, files []interface{}, asBot *appclient.Client) []string {
+func (fileUpload FileUploadServiceImpl) UploadFiles(creq apps.CallRequest, files []interface{}, asBot GetFile) []string {
 	chunkFileSize, _ := strconv.Atoi(os.Getenv("CHUNK_FILE_SIZE_MB"))
 	chunkFileSizeInBytes := int64(chunkFileSize * 1024 * 1024)
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
@@ -94,7 +99,7 @@ func (fileUpload FileUploadServiceImpl) chunkFileUpload(creq apps.CallRequest, f
 	chunkFolder := fmt.Sprintf("/%s-%s", "temp", uuid.New().String())
 	chunkUrl := fmt.Sprintf("%s%s%s%s", remoteUrl, "/remote.php/dav/uploads/", userId, chunkFolder)
 	mmfileUrl := fmt.Sprintf("%s/%s/%s", creq.Context.MattermostSiteURL, "api/v4/files", fileInfo.Id)
-	_, err := fileUpload.fileChunkUploadService.fileChunkService.createChunkFolder(chunkUrl)
+	_, err := fileUpload.fileChunkUploadService.getFileChunkService().createChunkFolder(chunkUrl)
 
 	if err != nil {
 		log.Errorf("Chunk folder was not created %s", err.Error())
@@ -103,7 +108,7 @@ func (fileUpload FileUploadServiceImpl) chunkFileUpload(creq apps.CallRequest, f
 	allChunksUpload := fileUpload.fileChunkUploadService.uploadChunks(chunkFileSizeInBytes, fileInfo, chunkUrl, mmfileUrl)
 
 	if allChunksUpload {
-		_, err := fileUpload.fileChunkUploadService.fileChunkService.assembleChunk(destination, chunkUrl)
+		_, err := fileUpload.fileChunkUploadService.getFileChunkService().assembleChunk(destination, chunkUrl)
 
 		if err != nil {
 			log.Errorf("Chunk was not assembled to NC destination %s with error %s", destination, err.Error())
@@ -115,7 +120,7 @@ func (fileUpload FileUploadServiceImpl) chunkFileUpload(creq apps.CallRequest, f
 	return uploadedFiles
 }
 
-func (fileUpload FileUploadServiceImpl) fullFileUpload(asBot *appclient.Client, f string, destination string, fileInfo *model.FileInfo, uploadedFiles []string) []string {
+func (fileUpload FileUploadServiceImpl) fullFileUpload(asBot GetFile, f string, destination string, fileInfo *model.FileInfo, uploadedFiles []string) []string {
 	log.Info("Full file uploading")
 	file, _, err := asBot.GetFile(f)
 	if err != nil {
