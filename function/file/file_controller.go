@@ -7,6 +7,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/prokhorind/nextcloud/function/oauth"
+	"github.com/prokhorind/nextcloud/function/user"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
@@ -234,15 +235,22 @@ func FileShare(c *gin.Context) {
 	url := fmt.Sprintf("%s%s", remoteUrl, "/ocs/v2.php/apps/files_sharing/api/v1/shares")
 
 	fileShareService := FileShareServiceImpl{Url: url, Token: accessToken}
+	fileSharesInfo := FileSharesInfo{fileShareService}
 
 	files := creq.Values["Files"].([]interface{})
-
+	botService := user.BotServiceImpl{creq}
+	botService.AddBot()
 	asBot := appclient.AsBot(creq.Context)
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
-		sm, err := fileShareService.GetSharesInfo(f, 3)
+		sm, err := fileSharesInfo.GetSharesInfo(f, 3)
 		if err == nil {
-			createFileSharePostWithAttachments(asBot, sm, creq)
+			var userId string
+			asBot.KVGet("", fmt.Sprintf("nc-user-%s", sm.UidFileOwner), &userId)
+			u, _, _ := asBot.GetUser(userId, "")
+			post := createFileSharePostWithAttachments(u, sm, creq)
+			asBot.CreatePost(post)
+
 		}
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
@@ -261,13 +269,20 @@ func FileUpload(c *gin.Context) {
 	files := creq.Values["Files"].([]interface{})
 
 	asBot := appclient.AsBot(creq.Context)
-	AddBot(creq)
-	validFiles, errMsg := ValidateFiles(asBot, files)
+	botService := user.BotServiceImpl{Creq: creq}
+	botService.AddBot()
+	fileService := FileFullUploadServiceImpl{token.AccessToken}
+	chunkFileService := FileChunkServiceImpl{Token: token.AccessToken}
+	mmFileService := MMFileServiceImpl{creq.Context.BotAccessToken}
+	chunkUploadService := ChunkFileUploadServiceImpl{chunkFileService, mmFileService}
+	fileUploadService := FileUploadServiceImpl{fileService, chunkUploadService}
+
+	validFiles, errMsg := fileUploadService.ValidateFiles(asBot, files)
 	if !validFiles {
 		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: *errMsg})
 		return
 	}
 
-	uploadedFiles := UploadFiles(creq, files, asBot, token)
+	uploadedFiles := fileUploadService.UploadFiles(creq, files, asBot)
 	c.JSON(http.StatusOK, apps.NewTextResponse("Uploaded files:  %s", strings.Join(uploadedFiles, ",")))
 }

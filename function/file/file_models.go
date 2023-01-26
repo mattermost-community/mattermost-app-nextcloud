@@ -44,10 +44,12 @@ type SharedFilesResponseBody struct {
 	XMLName xml.Name `xml:"ocs"`
 	Text    string   `xml:",chardata"`
 	Meta    OcsMeta  `xml:"meta"`
-	Data    struct {
-		Text    string           `xml:",chardata"`
-		Element []FileShareModel `xml:"element"`
-	} `xml:"data"`
+	Data    Data     `xml:"data"`
+}
+
+type Data struct {
+	Text    string           `xml:",chardata"`
+	Element []FileShareModel `xml:"element"`
 }
 
 type SharedFileResponseBody struct {

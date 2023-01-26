@@ -6,18 +6,16 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
-	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/mattermost/mattermost-server/v6/model"
 	"net/http"
 )
 
-type FileShareServiceImpl struct {
-	Url   string
-	Token string
+type FileSharesInfo struct {
+	shareService FileShareService
 }
 
-func (s FileShareServiceImpl) GetSharesInfo(filePath string, shareType int32) (*FileShareModel, error) {
-	shares, err := s.GetAllUserShares()
+func (s FileSharesInfo) GetSharesInfo(filePath string, shareType int32) (*FileShareModel, error) {
+	shares, err := s.shareService.getAllUserShares()
 
 	if err != nil {
 		return nil, err
@@ -29,10 +27,20 @@ func (s FileShareServiceImpl) GetSharesInfo(filePath string, shareType int32) (*
 		}
 	}
 
-	return s.CreateUserShare(filePath, shareType)
+	return s.shareService.createUserShare(filePath, shareType)
 }
 
-func (s FileShareServiceImpl) GetAllUserShares() (*SharedFilesResponseBody, error) {
+type FileShareService interface {
+	getAllUserShares() (*SharedFilesResponseBody, error)
+	createUserShare(filePath string, shareType int32) (*FileShareModel, error)
+}
+
+type FileShareServiceImpl struct {
+	Url   string
+	Token string
+}
+
+func (s FileShareServiceImpl) getAllUserShares() (*SharedFilesResponseBody, error) {
 
 	req, _ := http.NewRequest("GET", s.Url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
@@ -52,7 +60,7 @@ func (s FileShareServiceImpl) GetAllUserShares() (*SharedFilesResponseBody, erro
 	return &xmlResp, err
 }
 
-func (s FileShareServiceImpl) CreateUserShare(filePath string, shareType int32) (*FileShareModel, error) {
+func (s FileShareServiceImpl) createUserShare(filePath string, shareType int32) (*FileShareModel, error) {
 	payload := FileShareRequestBody{filePath, shareType}
 	body, _ := json.Marshal(payload)
 
@@ -75,22 +83,18 @@ func (s FileShareServiceImpl) CreateUserShare(filePath string, shareType int32) 
 	return &xmlResp.Data, err
 }
 
-func createFileSharePostWithAttachments(asBot *appclient.Client, sm *FileShareModel, creq apps.CallRequest) {
-	var userId string
-	asBot.KVGet("", fmt.Sprintf("nc-user-%s", sm.UidFileOwner), &userId)
+func createFileSharePostWithAttachments(user *model.User, sm *FileShareModel, creq apps.CallRequest) *model.Post {
 
 	post := model.Post{}
 	post.ChannelId = creq.Context.Channel.Id
-	attachments := createAttachments(asBot, userId, sm)
+	attachments := createAttachments(user, sm)
 	post.AddProp("attachments", attachments)
-	asBot.CreatePost(&post)
+	return &post
 }
 
-func createAttachments(asBot *appclient.Client, userId string, sm *FileShareModel) []model.SlackAttachment {
+func createAttachments(user *model.User, sm *FileShareModel) []model.SlackAttachment {
 	attachment := model.SlackAttachment{}
-
-	u, _, _ := asBot.GetUser(userId, "")
-	attachment.AuthorName = u.Username
+	attachment.AuthorName = user.Username
 	attachment.Title = sm.FileTarget[1:]
 	attachment.TitleLink = sm.URL
 	attachment.Footer = sm.Mimetype
