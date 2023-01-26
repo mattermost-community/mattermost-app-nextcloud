@@ -29,10 +29,6 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/get-parsed-date", calendar.HandleGetParsedCalendarDate)
 	r.POST("/file-upload-form", file.FileUploadForm)
 	r.POST("/file-upload", file.FileUpload)
-	//r.POST("/webhook/calendar-event-created", calendar.HandleWebhookCreateEvent)
-	//r.POST("/webhook/calendar-event-updated", calendar.HandleWebhookUpdateEvent)
-	//r.POST("/calendars/:calendarId/status/:status", user.HandleCalendarDoNotDisturbMode)
-	//r.POST("/not-disturb", user.HandleUserDoNotDisturbMode)
 
 	r.POST("/ping", install.Ping)
 	r.POST("/folder-search", file.SearchFolders)
