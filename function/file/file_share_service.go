@@ -83,24 +83,33 @@ func (s FileShareServiceImpl) CreateUserShare(filePath string, shareType int32) 
 	return &xmlResp.Data, err
 }
 
-func createFileSharePostWithAttachments(user *model.User, sm *FileShareModel, creq apps.CallRequest) *model.Post {
+type FileSharePostAttachements interface {
+	CreateFileSharePostWithAttachments(creq apps.CallRequest) *model.Post
+}
+
+type FileSharePostAttachementsImpl struct {
+	user *model.User
+	sm   *FileShareModel
+}
+
+func (f FileSharePostAttachementsImpl) CreateFileSharePostWithAttachments(creq apps.CallRequest) *model.Post {
 
 	post := model.Post{}
 	post.ChannelId = creq.Context.Channel.Id
-	attachments := createAttachments(user, sm)
+	attachments := f.createAttachments()
 	post.AddProp("attachments", attachments)
 	return &post
 }
 
-func createAttachments(user *model.User, sm *FileShareModel) []model.SlackAttachment {
+func (f FileSharePostAttachementsImpl) createAttachments() []*model.SlackAttachment {
 	attachment := model.SlackAttachment{}
-	attachment.AuthorName = user.Username
-	attachment.Title = sm.FileTarget[1:]
-	attachment.TitleLink = sm.URL
-	attachment.Footer = sm.Mimetype
+	attachment.AuthorName = f.user.Username
+	attachment.Title = f.sm.FileTarget[1:]
+	attachment.TitleLink = f.sm.URL
+	attachment.Footer = f.sm.Mimetype
 
-	attachments := make([]model.SlackAttachment, 0)
+	attachments := make([]*model.SlackAttachment, 0)
 
-	attachments = append(attachments, attachment)
+	attachments = append(attachments, &attachment)
 	return attachments
 }

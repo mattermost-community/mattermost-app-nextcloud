@@ -71,7 +71,8 @@ func FileUploadForm(c *gin.Context) {
 
 	body := createSearchRequestBody(userId, "")
 	resp := sendFileSearchRequest(url, body, token.AccessToken)
-	folderSelectOptions, rootSelectOption := CreateFolderSelectOptions(resp, userId, "Root", "/")
+	searchService := SearchSelectOptionsImpl{}
+	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(resp, userId, "Root", "/")
 
 	fileSelectOptions := make([]apps.SelectOption, 0)
 	fileInfos, _, _ := asActingUser.GetFileInfosForPost(creq.Context.Post.Id, "")
@@ -154,11 +155,12 @@ func FileShareForm(c *gin.Context) {
 		return
 	}
 
-	fileSelectOptions := CreateFileSelectOptions(files)
+	searchService := SearchSelectOptionsImpl{}
+	fileSelectOptions := searchService.CreateFileSelectOptions(files)
 
 	folderSearchBody := createSearchRequestBody(userId, "")
 	folderSearchResp := sendFileSearchRequest(url, folderSearchBody, accessToken)
-	folderSelectOptions, defaultSelectOption := CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
+	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
 
 	if creq.Values["Folder"] != nil {
 		for _, so := range folderSelectOptions {
@@ -248,7 +250,8 @@ func FileShare(c *gin.Context) {
 			var userId string
 			asBot.KVGet("", fmt.Sprintf("nc-user-%s", sm.UidFileOwner), &userId)
 			u, _, _ := asBot.GetUser(userId, "")
-			post := createFileSharePostWithAttachments(u, sm, creq)
+			attachmentService := FileSharePostAttachementsImpl{user: u, sm: sm}
+			post := attachmentService.CreateFileSharePostWithAttachments(creq)
 			asBot.CreatePost(post)
 
 		}
