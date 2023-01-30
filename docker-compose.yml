@@ -3,6 +3,7 @@ version: '3'
 services:
   web:
     environment:
+      - JWT_SECRET=secret
       - STATIC_FOLDER=static
       - APP_TYPE=HTTP
       - CHUNK_FILE_SIZE_MB=1

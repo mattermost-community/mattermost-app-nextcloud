@@ -21,6 +21,7 @@ func GetManifest(c *gin.Context) {
 
 	if "HTTP" == appType {
 		manifest.HTTP.RootURL = os.Getenv("APP_URL")
+		manifest.HTTP.UseJWT = true
 	}
 
 	c.JSON(http.StatusOK, manifest)

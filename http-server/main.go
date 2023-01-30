@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/prokhorind/nextcloud/function/install"
+	"github.com/prokhorind/nextcloud/function/oauth"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,8 +14,8 @@ import (
 func main() {
 	r := gin.Default()
 
+	r.Use(oauth.JWTMiddleWare())
 	r.StaticFS("/static/", http.Dir(os.Getenv("STATIC_FOLDER")))
-
 	function.InitHandlers(r)
 
 	r.GET("/manifest.json", install.GetManifest)
