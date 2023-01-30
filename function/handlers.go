@@ -31,7 +31,6 @@ func InitHandlers(r *gin.Engine) {
 	r.POST("/file-upload", file.FileUpload)
 
 	r.POST("/ping", install.Ping)
-	r.POST("/folder-search", file.SearchFolders)
 	r.POST("/calendars", calendar.HandleGetUserCalendars)
 	r.POST("/users/:userId/calendars/:calendarId/events/:eventId/status/:status", calendar.HandleChangeEventStatus)
 }

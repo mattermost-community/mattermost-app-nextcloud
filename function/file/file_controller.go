@@ -14,42 +14,6 @@ import (
 	"strings"
 )
 
-func SearchFolders(c *gin.Context) {
-	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
-
-	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
-	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
-
-	foldName := creq.Query
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
-
-	body := createSearchRequestBody(userId, foldName)
-	resp := sendFileSearchRequest(url, body, token.AccessToken)
-	selectOptions := make([]apps.SelectOption, 0)
-	for _, f := range resp.FileResponse {
-		hasContentType := false
-
-		for _, p := range f.PropertyStats {
-			if len(p.Property.Getcontenttype) != 0 {
-				hasContentType = true
-				break
-			}
-		}
-		if !hasContentType {
-			option := apps.SelectOption{Label: f.Href, Value: f.Href}
-			selectOptions = append(selectOptions, option)
-		}
-	}
-
-	c.JSON(200, apps.NewDataResponse(DynamicSelectResponse{Items: selectOptions}))
-}
-
 func FileUploadForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
