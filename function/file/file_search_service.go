@@ -57,7 +57,15 @@ func createSearchRequestBody(userName string, fileName string) string {
 	return body
 }
 
-func CreateFileSelectOptions(files []FileResponse) []apps.SelectOption {
+type SearchSelectOptions interface {
+	CreateFileSelectOptions(files []FileResponse) []apps.SelectOption
+	CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string) ([]apps.SelectOption, apps.SelectOption)
+}
+
+type SearchSelectOptionsImpl struct {
+}
+
+func (SearchSelectOptionsImpl) CreateFileSelectOptions(files []FileResponse) []apps.SelectOption {
 	fileSelectOptions := make([]apps.SelectOption, 0)
 
 	for _, f := range files {
@@ -91,7 +99,7 @@ func CreateFileSelectOptions(files []FileResponse) []apps.SelectOption {
 	return fileSelectOptions
 }
 
-func CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string) ([]apps.SelectOption, apps.SelectOption) {
+func (SearchSelectOptionsImpl) CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string) ([]apps.SelectOption, apps.SelectOption) {
 	folderSelectOptions := make([]apps.SelectOption, 0)
 	for _, f := range resp.FileResponse {
 		hasContentType := false

@@ -1,24 +1,45 @@
 package file
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
+	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/prokhorind/nextcloud/function/oauth"
 	log "github.com/sirupsen/logrus"
-	"net/http"
 	"os"
 	"strconv"
 )
 
-type FileServiceImpl struct {
-	Url   string
-	Token string
+type GetFileInfo interface {
+	GetFileInfo(fileId string) (*model.FileInfo, *model.Response, error)
 }
 
-func ValidateFiles(asBot *appclient.Client, files []interface{}) (bool, *string) {
+type GetFile interface {
+	GetFileInfo
+	GetFile(fileId string) ([]byte, *model.Response, error)
+}
+
+type FilesUploadService interface {
+	ValidateFiles(asBot *appclient.Client, files []interface{}) (bool, *string)
+	UploadFiles(creq apps.CallRequest, files []interface{}, asBot *appclient.Client, token oauth.Token) []string
+}
+
+type FileUploadServiceImpl struct {
+	fileFullUploadService  FileFullUploadService
+	fileChunkUploadService ChunkFileUploadService
+}
+
+func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files []interface{}) (bool, *string) {
+	maxFileSizeString := os.Getenv("MAX_FILE_SIZE_MB")
+	maxFileSize, _ := strconv.Atoi(maxFileSizeString)
+	maxFileSizeInBytes := int64(maxFileSize * 1024 * 1024)
+
+	maxFilesSizeString := os.Getenv("MAX_FILES_SIZE_MB")
+	maxFilesSize, _ := strconv.Atoi(maxFilesSizeString)
+	maxFilesSizeInBytes := int64(maxFilesSize * 1024 * 1024)
+	var filesSize int64
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
 
@@ -29,10 +50,12 @@ func ValidateFiles(asBot *appclient.Client, files []interface{}) (bool, *string)
 			log.Error(errorMsg)
 			return false, &errorMsg
 		}
-
-		maxFileSizeString := os.Getenv("MAX_FILE_SIZE_MB")
-		maxFileSize, _ := strconv.Atoi(maxFileSizeString)
-		maxFileSizeInBytes := int64(maxFileSize * 1024 * 1024)
+		filesSize = filesSize + fileInfo.Size
+		if filesSize > maxFilesSizeInBytes {
+			msg := fmt.Sprintf("Size of uploading files above %s MB cannot be uploaded", maxFilesSizeString)
+			log.Error(msg)
+			return false, &msg
+		}
 
 		if fileInfo.Size > maxFileSizeInBytes {
 			msg := fmt.Sprintf("File above %s MB cannot be uploaded: %s", maxFileSizeString, fileInfo.Name)
@@ -44,7 +67,9 @@ func ValidateFiles(asBot *appclient.Client, files []interface{}) (bool, *string)
 	return true, nil
 }
 
-func UploadFiles(creq apps.CallRequest, files []interface{}, asBot *appclient.Client, token oauth.Token) []string {
+func (fileUpload FileUploadServiceImpl) UploadFiles(creq apps.CallRequest, files []interface{}, asBot GetFile) []string {
+	chunkFileSize, _ := strconv.Atoi(os.Getenv("CHUNK_FILE_SIZE_MB"))
+	chunkFileSizeInBytes := int64(chunkFileSize * 1024 * 1024)
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	folder := creq.Values["Folder"].(map[string]interface{})["value"].(string)
@@ -54,99 +79,60 @@ func UploadFiles(creq apps.CallRequest, files []interface{}, asBot *appclient.Cl
 
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
-
 		fileInfo, _, _ := asBot.GetFileInfo(f)
-
-		chunkFileSize, _ := strconv.Atoi(os.Getenv("CHUNK_FILE_SIZE_MB"))
-
-		chunkFileSizeInBytes := int64(chunkFileSize * 1024 * 1024)
-
 		destination := fmt.Sprintf("%s%s", fileUrl, fileInfo.Name)
+
 		if fileInfo.Size <= chunkFileSizeInBytes {
-			log.Info("Full file uploading")
-			file, _, err := asBot.GetFile(f)
-			if err != nil {
-				log.Errorf("File was not downloaded from MM %s with error %s", f, err.Error())
-				continue
-			}
-			fileService := FileServiceImpl{Url: destination, Token: token.AccessToken}
-			_, uploadError := fileService.UploadFile(file)
-			if uploadError != nil {
-				log.Errorf("File %s was not auploaded to NC  with error %s", fileInfo.Id, err.Error())
-			} else {
-				uploadedFiles = append(uploadedFiles, fileInfo.Name)
-				log.Infof("file was uploaded %s", fileInfo.Name)
-			}
+			uploadedFiles = fileUpload.fullFileUpload(asBot, f, destination, fileInfo, uploadedFiles)
 		} else {
-			log.Info("Chunk file uploading")
-			chunkFolder := fmt.Sprintf("/%s-%s", "temp", uuid.New().String())
-			chunkUrl := fmt.Sprintf("%s%s%s%s", remoteUrl, "/remote.php/dav/uploads/", userId, chunkFolder)
-			mmfileUrl := fmt.Sprintf("%s/%s/%s", creq.Context.MattermostSiteURL, "api/v4/files", fileInfo.Id)
-			fileService := FileChunkServiceImpl{BaseUrl: chunkUrl, Token: token.AccessToken}
-			_, err := fileService.createChunkFolder()
-
-			if err != nil {
-				log.Errorf("Chunk folder was not created %s", err.Error())
-				continue
-			}
-
-			allChunksUpload := uploadChunks(chunkFileSizeInBytes, fileInfo, mmfileUrl, creq, fileService)
-
-			if allChunksUpload {
-				_, err := fileService.assembleChunk(destination)
-
-				if err != nil {
-					log.Errorf("Chunk was not assembled to NC destination %s with error %s", destination, err.Error())
-				} else {
-					uploadedFiles = append(uploadedFiles, fileInfo.Name)
-					log.Infof("file was uploaded %s", destination)
-				}
-			}
+			uploadedFiles = fileUpload.chunkFileUpload(creq, fileInfo, chunkFileSizeInBytes, destination, uploadedFiles)
 		}
 
 	}
 	return uploadedFiles
 }
 
-func (s FileServiceImpl) UploadFile(file []byte) (*http.Response, error) {
-	req, _ := http.NewRequest("PUT", s.Url, bytes.NewBuffer(file))
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	return resp, err
-}
-
-func AddBot(creq apps.CallRequest) {
-	addBotToTeam(creq)
-	addBotToChannel(creq)
-}
-
-func addBotToTeam(creq apps.CallRequest) {
-	teamId := creq.Context.Channel.TeamId
-	botId := creq.Context.BotUserID
-	asActingUser := appclient.AsActingUser(creq.Context)
-	_, _, err := asActingUser.GetTeamMember(teamId, botId, "")
+func (fileUpload FileUploadServiceImpl) chunkFileUpload(creq apps.CallRequest, fileInfo *model.FileInfo, chunkFileSizeInBytes int64, destination string, uploadedFiles []string) []string {
+	log.Info("Chunk file uploading")
+	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
+	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
+	chunkFolder := fmt.Sprintf("/%s-%s", "temp", uuid.New().String())
+	chunkUrl := fmt.Sprintf("%s%s%s%s", remoteUrl, "/remote.php/dav/uploads/", userId, chunkFolder)
+	mmfileUrl := fmt.Sprintf("%s/%s/%s", creq.Context.MattermostSiteURL, "api/v4/files", fileInfo.Id)
+	_, err := fileUpload.fileChunkUploadService.getFileChunkService().createChunkFolder(chunkUrl)
 
 	if err != nil {
-		asActingUser.AddTeamMember(teamId, botId)
+		log.Errorf("Chunk folder was not created %s", err.Error())
+		return uploadedFiles
 	}
+	allChunksUpload := fileUpload.fileChunkUploadService.uploadChunks(chunkFileSizeInBytes, fileInfo, chunkUrl, mmfileUrl)
+
+	if allChunksUpload {
+		_, err := fileUpload.fileChunkUploadService.getFileChunkService().assembleChunk(destination, chunkUrl)
+
+		if err != nil {
+			log.Errorf("Chunk was not assembled to NC destination %s with error %s", destination, err.Error())
+			return uploadedFiles
+		}
+		uploadedFiles = append(uploadedFiles, fileInfo.Name)
+		log.Infof("file was uploaded %s", destination)
+	}
+	return uploadedFiles
 }
 
-func addBotToChannel(creq apps.CallRequest) {
-	channelId := creq.Context.Channel.Id
-	botId := creq.Context.BotUserID
-
-	asActingUser := appclient.AsActingUser(creq.Context)
-
-	_, _, err := asActingUser.GetChannelMember(channelId, botId, "")
-
+func (fileUpload FileUploadServiceImpl) fullFileUpload(asBot GetFile, f string, destination string, fileInfo *model.FileInfo, uploadedFiles []string) []string {
+	log.Info("Full file uploading")
+	file, _, err := asBot.GetFile(f)
 	if err != nil {
-		asActingUser.AddChannelMember(channelId, botId)
+		log.Errorf("File was not downloaded from MM %s with error %s", f, err.Error())
+		return uploadedFiles
 	}
-
+	_, uploadError := fileUpload.fileFullUploadService.UploadFile(file, destination)
+	if uploadError != nil {
+		log.Errorf("File %s was not auploaded to NC  with error %s", fileInfo.Id, err.Error())
+		return uploadedFiles
+	}
+	uploadedFiles = append(uploadedFiles, fileInfo.Name)
+	log.Infof("file was uploaded %s", fileInfo.Name)
+	return uploadedFiles
 }

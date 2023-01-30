@@ -7,47 +7,12 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"github.com/prokhorind/nextcloud/function/oauth"
+	"github.com/prokhorind/nextcloud/function/user"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"sort"
 	"strings"
 )
-
-func SearchFolders(c *gin.Context) {
-	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
-
-	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
-	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
-
-	foldName := creq.Query
-	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
-
-	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
-	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
-
-	body := createSearchRequestBody(userId, foldName)
-	resp := sendFileSearchRequest(url, body, token.AccessToken)
-	selectOptions := make([]apps.SelectOption, 0)
-	for _, f := range resp.FileResponse {
-		hasContentType := false
-
-		for _, p := range f.PropertyStats {
-			if len(p.Property.Getcontenttype) != 0 {
-				hasContentType = true
-				break
-			}
-		}
-		if !hasContentType {
-			option := apps.SelectOption{Label: f.Href, Value: f.Href}
-			selectOptions = append(selectOptions, option)
-		}
-	}
-
-	c.JSON(200, apps.NewDataResponse(DynamicSelectResponse{Items: selectOptions}))
-}
 
 func FileUploadForm(c *gin.Context) {
 	creq := apps.CallRequest{}
@@ -70,7 +35,8 @@ func FileUploadForm(c *gin.Context) {
 
 	body := createSearchRequestBody(userId, "")
 	resp := sendFileSearchRequest(url, body, token.AccessToken)
-	folderSelectOptions, rootSelectOption := CreateFolderSelectOptions(resp, userId, "Root", "/")
+	searchService := SearchSelectOptionsImpl{}
+	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(resp, userId, "Root", "/")
 
 	fileSelectOptions := make([]apps.SelectOption, 0)
 	fileInfos, _, _ := asActingUser.GetFileInfosForPost(creq.Context.Post.Id, "")
@@ -153,11 +119,12 @@ func FileShareForm(c *gin.Context) {
 		return
 	}
 
-	fileSelectOptions := CreateFileSelectOptions(files)
+	searchService := SearchSelectOptionsImpl{}
+	fileSelectOptions := searchService.CreateFileSelectOptions(files)
 
 	folderSearchBody := createSearchRequestBody(userId, "")
 	folderSearchResp := sendFileSearchRequest(url, folderSearchBody, accessToken)
-	folderSelectOptions, defaultSelectOption := CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
+	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
 
 	if creq.Values["Folder"] != nil {
 		for _, so := range folderSelectOptions {
@@ -234,15 +201,23 @@ func FileShare(c *gin.Context) {
 	url := fmt.Sprintf("%s%s", remoteUrl, "/ocs/v2.php/apps/files_sharing/api/v1/shares")
 
 	fileShareService := FileShareServiceImpl{Url: url, Token: accessToken}
+	fileSharesInfo := FileSharesInfo{fileShareService}
 
 	files := creq.Values["Files"].([]interface{})
-
+	botService := user.BotServiceImpl{creq}
+	botService.AddBot()
 	asBot := appclient.AsBot(creq.Context)
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
-		sm, err := fileShareService.GetSharesInfo(f, 3)
+		sm, err := fileSharesInfo.GetSharesInfo(f, 3)
 		if err == nil {
-			createFileSharePostWithAttachments(asBot, sm, creq)
+			var userId string
+			asBot.KVGet("", fmt.Sprintf("nc-user-%s", sm.UidFileOwner), &userId)
+			u, _, _ := asBot.GetUser(userId, "")
+			attachmentService := FileSharePostAttachementsImpl{user: u, sm: sm}
+			post := attachmentService.CreateFileSharePostWithAttachments(creq)
+			asBot.CreatePost(post)
+
 		}
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
@@ -261,13 +236,20 @@ func FileUpload(c *gin.Context) {
 	files := creq.Values["Files"].([]interface{})
 
 	asBot := appclient.AsBot(creq.Context)
-	AddBot(creq)
-	validFiles, errMsg := ValidateFiles(asBot, files)
+	botService := user.BotServiceImpl{Creq: creq}
+	botService.AddBot()
+	chunkFileService := FileChunkServiceImpl{Token: token.AccessToken}
+	mmFileService := MMFileServiceImpl{creq.Context.BotAccessToken}
+	chunkUploadService := ChunkFileUploadServiceImpl{&chunkFileService, mmFileService}
+	fileService := FileFullUploadServiceImpl{token.AccessToken}
+	fileUploadService := FileUploadServiceImpl{&fileService, &chunkUploadService}
+
+	validFiles, errMsg := fileUploadService.ValidateFiles(asBot, files)
 	if !validFiles {
 		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: *errMsg})
 		return
 	}
 
-	uploadedFiles := UploadFiles(creq, files, asBot, token)
+	uploadedFiles := fileUploadService.UploadFiles(creq, files, asBot)
 	c.JSON(http.StatusOK, apps.NewTextResponse("Uploaded files:  %s", strings.Join(uploadedFiles, ",")))
 }
