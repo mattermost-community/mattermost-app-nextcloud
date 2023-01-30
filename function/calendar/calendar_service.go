@@ -2,6 +2,7 @@ package calendar
 
 import (
 	"encoding/xml"
+	"errors"
 	"fmt"
 	ics "github.com/arran4/golang-ical"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
@@ -169,7 +170,10 @@ func (c CalendarServiceImpl) GetCalendarEvent() string {
 	return string(event)
 }
 
-func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) string {
+func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) (string, error) {
+	if cal == nil {
+		return "", errors.New("this event is no longer valid")
+	}
 	for _, e := range cal.Events() {
 		for _, a := range e.Attendees() {
 			if user.Email == a.Email() {
@@ -178,12 +182,18 @@ func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model
 			}
 		}
 	}
-	return cal.Serialize()
+	return cal.Serialize(), nil
 }
 
 func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding {
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: "Attendance-actions",
+		Label:    "Attendance-actions",
+		Bindings: make([]apps.Binding, 0),
+	})
+	i := len(commandBinding.Bindings) - 1
 	if status != "ACCEPTED" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		commandBinding.Bindings[i].Bindings = append(commandBinding.Bindings[i].Bindings, apps.Binding{
 			Location: "Accept",
 			Label:    "Accept",
 			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "accepted")).WithExpand(apps.Expand{
@@ -194,9 +204,8 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 			}),
 		})
 	}
-
 	if status != "DECLINED" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		commandBinding.Bindings[i].Bindings = append(commandBinding.Bindings[i].Bindings, apps.Binding{
 			Location: "Decline",
 			Label:    "Decline",
 			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "declined")).WithExpand(apps.Expand{
@@ -209,7 +218,7 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 	}
 
 	if status != "TENTATIVE" {
-		commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		commandBinding.Bindings[i].Bindings = append(commandBinding.Bindings[i].Bindings, apps.Binding{
 			Location: "Tentative",
 			Label:    "Tentative",
 			Submit: apps.NewCall(fmt.Sprintf("%s/%s", path, "tentative")).WithExpand(apps.Expand{
