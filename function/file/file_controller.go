@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
+	"github.com/pkg/errors"
 	"github.com/prokhorind/nextcloud/function/oauth"
 	"github.com/prokhorind/nextcloud/function/user"
 	log "github.com/sirupsen/logrus"
@@ -207,6 +208,14 @@ func FileShare(c *gin.Context) {
 	botService := user.BotServiceImpl{creq}
 	botService.AddBot()
 	asBot := appclient.AsBot(creq.Context)
+
+	if len(files) == 0 {
+		msg := fmt.Sprintf("Please, choose a file to share")
+		log.Error(msg)
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New(msg)))
+		return
+	}
+
 	for _, file := range files {
 		f := file.(map[string]interface{})["value"].(string)
 		sm, err := fileSharesInfo.GetSharesInfo(f, 3)

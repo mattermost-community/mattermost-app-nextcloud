@@ -32,6 +32,12 @@ type FileUploadServiceImpl struct {
 }
 
 func (fileUpload FileUploadServiceImpl) ValidateFiles(asBot GetFileInfo, files []interface{}) (bool, *string) {
+	if len(files) == 0 {
+		msg := fmt.Sprintf("Please, choose a file to upload")
+		log.Error(msg)
+		return false, &msg
+	}
+
 	maxFileSizeString := os.Getenv("MAX_FILE_SIZE_MB")
 	maxFileSize, _ := strconv.Atoi(maxFileSizeString)
 	maxFileSizeInBytes := int64(maxFileSize * 1024 * 1024)
