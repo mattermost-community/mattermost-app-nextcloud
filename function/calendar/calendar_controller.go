@@ -621,8 +621,9 @@ func сreateViewButton(commandBinding *apps.Binding, location apps.Location, org
 	}
 	commandBinding.Bindings[i].Form.Fields = append(commandBinding.Bindings[i].Form.Fields, apps.Field{
 		Type:        apps.FieldTypeText,
-		Name:        "IcsLink",
-		Label:       "IcsLink",
+		Name:        "Event-Import",
+		Label:       "Event-Import",
+		Description: "Use this link to import event in your calendars",
 		Value:       reqUrl,
 		ReadOnly:    true,
 		IsRequired:  true,

@@ -148,6 +148,17 @@ func Bindings(c *gin.Context) {
 		commandBinding.Bindings = append(commandBinding.Bindings, configure)
 	}
 
+	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
+		Location: "help",
+		Label:    "help",
+		Submit: apps.NewCall("/help").WithExpand(apps.Expand{
+			OAuth2App:             apps.ExpandAll,
+			OAuth2User:            apps.ExpandAll,
+			ActingUserAccessToken: apps.ExpandAll,
+			ActingUser:            apps.ExpandAll,
+		}),
+	})
+
 	c.JSON(http.StatusOK, apps.CallResponse{
 		Type: apps.CallResponseTypeOK,
 		Data: []apps.Binding{

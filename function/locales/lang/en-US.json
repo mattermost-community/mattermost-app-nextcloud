@@ -1,0 +1,11 @@
+{
+  "help": {
+    "title": "Mattermost Nextcloud plugin - Help",
+    "connect": "Connect your Nextcloud to Mattermost.",
+    "share": "Share file links from Nextcloud to channel in Mattermost.",
+    "calendars": "Get list of your calendars from Nextcloud.",
+    "configure": "Configure integration app to connect to Nextcloud.",
+    "disconnect" : "Disconnect your Nextcloud account from Mattermost",
+    "tips": "Tips:\n1. Via calendars you can create Nextcloud events and get events within certain period of time.\n2. If you are creating an event and you have a Zoom or Google Meet link, paste it into descriptions.\n3. If you want to upload file to Nextcloud, upload it to Mattermost and choose \"Message actions\" and then \"Upload to Nextcloud\"."
+  }
+}

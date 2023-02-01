@@ -186,9 +186,15 @@ func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model
 }
 
 func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding {
+	var label string
+	if len(status) != 0 && status != "NEEDS-ACTION" {
+		label = status
+	} else {
+		label = "Attendance-actions"
+	}
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
 		Location: "Attendance-actions",
-		Label:    "Attendance-actions",
+		Label:    label,
 		Bindings: make([]apps.Binding, 0),
 	})
 	i := len(commandBinding.Bindings) - 1
