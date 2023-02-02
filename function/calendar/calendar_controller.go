@@ -748,7 +748,7 @@ func HandleGetUserCalendars(c *gin.Context) {
 
 }
 
-func createCalendarPost(option apps.SelectOption, disabled bool) *model.Post {
+func createCalendarPost(option apps.SelectOption) *model.Post {
 	post := model.Post{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
