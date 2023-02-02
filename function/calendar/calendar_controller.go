@@ -5,7 +5,6 @@ import (
 	"fmt"
 	ics "github.com/arran4/golang-ical"
 	"github.com/jarylc/go-chrono/v2"
-	"github.com/prokhorind/nextcloud/function/user"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
@@ -737,18 +736,16 @@ func HandleGetUserCalendars(c *gin.Context) {
 	}
 
 	asBot := appclient.AsBot(creq.Context)
-	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
 	for _, c := range userCalendars {
-		us := userSettingsService.GetUserSettingsById(creq.Context.ActingUser.Id)
-		post := createCalendarPost(c, us.Contains(c.Value))
+		post := createCalendarPost(c)
 		asBot.DMPost(creq.Context.ActingUser.Id, post)
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
 
 }
 
-func createCalendarPost(option apps.SelectOption, disabled bool) *model.Post {
+func createCalendarPost(option apps.SelectOption) *model.Post {
 	post := model.Post{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
@@ -763,13 +760,6 @@ func createCalendarPost(option apps.SelectOption, disabled bool) *model.Post {
 	createGetCalendarEventsButton(&commandBinding, option, "Calendar", "Select date", "select-date-form")
 	createCalendarEventsButton(&commandBinding, option, "Calendar", "Create event")
 
-	//if disabled {
-	//	createDoNotDisturbButton(&commandBinding, option, "Enable", "Enable notifications")
-	//
-	//} else {
-	//	createDoNotDisturbButton(&commandBinding, option, "Disable", "Disable notifications")
-	//}
-
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
@@ -777,19 +767,6 @@ func createCalendarPost(option apps.SelectOption, disabled bool) *model.Post {
 	return &post
 
 }
-
-//func createDoNotDisturbButton(commandBinding *apps.Binding, option apps.SelectOption, location apps.Location, label string) {
-//	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-//		Location: location,
-//		Label:    label,
-//		Submit: apps.NewCall(fmt.Sprintf("/calendars/%s/status/%s", option.Value, location)).WithExpand(apps.Expand{
-//			OAuth2App:             apps.ExpandAll,
-//			OAuth2User:            apps.ExpandAll,
-//			ActingUserAccessToken: apps.ExpandAll,
-//			ActingUser:            apps.ExpandAll,
-//		}),
-//	})
-//}
 
 func createGetCalendarEventsButton(commandBinding *apps.Binding, option apps.SelectOption, location apps.Location, label string, day string) {
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
