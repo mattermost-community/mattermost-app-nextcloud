@@ -5,7 +5,6 @@ import (
 	"fmt"
 	ics "github.com/arran4/golang-ical"
 	"github.com/jarylc/go-chrono/v2"
-	"github.com/prokhorind/nextcloud/function/user"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
@@ -737,11 +736,9 @@ func HandleGetUserCalendars(c *gin.Context) {
 	}
 
 	asBot := appclient.AsBot(creq.Context)
-	userSettingsService := user.UserSettingsServiceImpl{asBot}
 
 	for _, c := range userCalendars {
-		us := userSettingsService.GetUserSettingsById(creq.Context.ActingUser.Id)
-		post := createCalendarPost(c, us.Contains(c.Value))
+		post := createCalendarPost(c)
 		asBot.DMPost(creq.Context.ActingUser.Id, post)
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
