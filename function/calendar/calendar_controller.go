@@ -202,7 +202,7 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	deleteUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, user, calendarId, eventId)
 
 	calendarService.deleteUserEvent(deleteUrl, token.AccessToken)
-	c.JSON(http.StatusOK, apps.NewTextResponse("event deleted :"+eventId))
+	c.JSON(http.StatusOK, apps.NewTextResponse("Event deleted"))
 }
 
 func GetUserSelectedEventsDate(c *gin.Context) {
@@ -405,8 +405,8 @@ func createCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
 	}
 
 	deletePath := fmt.Sprintf("/delete-event/%s/events/%s", postDTO.calendarId, postDTO.eventId)
-	сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	сreateViewButton(&commandBinding, "view-details", organizer, "View Details", postDTO, name, reqUrl)
+	сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 

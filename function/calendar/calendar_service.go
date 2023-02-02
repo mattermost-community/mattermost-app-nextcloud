@@ -190,10 +190,10 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 	if len(status) != 0 && status != "NEEDS-ACTION" {
 		label = status
 	} else {
-		label = "Attendance-actions"
+		label = "Going?"
 	}
 	commandBinding.Bindings = append(commandBinding.Bindings, apps.Binding{
-		Location: "Attendance-actions",
+		Location: "Going",
 		Label:    label,
 		Bindings: make([]apps.Binding, 0),
 	})
