@@ -89,6 +89,8 @@ func TestFullFileUploadIsUsing(t *testing.T) {
 	os.Setenv("MAX_FILE_SIZE_MB", "1")
 	defer os.Unsetenv("MAX_FILE_SIZE_MB")
 	os.Setenv("CHUNK_FILE_SIZE_MB", "2")
+	defer os.Unsetenv("CHUNK_FILE_SIZE_MB")
+
 	os.Setenv("MAX_FILES_SIZE_MB", "3")
 	defer os.Unsetenv("MAX_FILES_SIZE_MB")
 

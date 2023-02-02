@@ -5,6 +5,7 @@ import (
 	"fmt"
 	ics "github.com/arran4/golang-ical"
 	"github.com/jarylc/go-chrono/v2"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
@@ -50,7 +51,8 @@ func HandleCreateEvent(c *gin.Context) {
 
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s.ics", remoteUrl, userId, calendar, uuid)
 
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
 
 	_, err := calendarService.CreateEvent(body)
 
@@ -63,11 +65,19 @@ func HandleCreateEvent(c *gin.Context) {
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
 }
 
-func DMEventPost(creq apps.CallRequest, calendarService CalendarServiceImpl, calendar string, uuid string) {
+func DMEventPost(creq apps.CallRequest, calendarService CalendarService, calendar string, uuid string) {
 	asBot := appclient.AsBot(creq.Context)
 
-	event := calendarService.GetCalendarEvent()
-	cal, _ := ics.ParseCalendar(strings.NewReader(event))
+	event, eventError := calendarService.GetCalendarEvent()
+	if eventError != nil {
+		log.Error("Event was not found", calendarService.GetUrl())
+		return
+	}
+	cal, parseError := ics.ParseCalendar(strings.NewReader(event))
+	if parseError != nil {
+		log.Errorf("Can't parse calendar for event %s", calendarService.GetUrl())
+		return
+	}
 	vEvent := cal.Events()[0]
 	loc := getMMUserLocation(creq)
 
@@ -103,7 +113,8 @@ func HandleCreateEventForm(c *gin.Context) {
 
 	accessToken := token.AccessToken
 
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
 	option := creq.State.(map[string]interface{})
 
 	loc := getMMUserLocation(creq)
@@ -189,7 +200,6 @@ func DoNothing(c *gin.Context) {
 func HandleDeleteCalendarEvent(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
-	calendarService := CalendarServiceImpl{}
 	calendarId := c.Param("calendarId")
 	eventId := c.Param("eventId")
 	oauthService := oauth.OauthServiceImpl{creq}
@@ -200,7 +210,14 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	user := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	deleteUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, user, calendarId, eventId)
 
-	calendarService.deleteUserEvent(deleteUrl, token.AccessToken)
+	calendarRequestService := CalendarRequestServiceImpl{Url: deleteUrl, Token: token.AccessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
+	_, err := calendarService.DeleteUserEvent()
+
+	if err != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Event was not deleted")))
+	}
+
 	c.JSON(http.StatusOK, apps.NewTextResponse("Event deleted"))
 }
 
@@ -307,7 +324,8 @@ func HandleGetEvents(c *gin.Context, creq apps.CallRequest, date time.Time, cale
 		From: from,
 		To:   to,
 	}
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: token.AccessToken}
+	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: token.AccessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
 
 	events, eventIds := calendarService.GetCalendarEvents(eventRange)
 	calendarEvents := make([]ics.VEvent, 0)
@@ -665,9 +683,10 @@ func HandleChangeEventStatus(c *gin.Context) {
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, userId, calendarId, eventId)
 
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
 
-	eventIcs := calendarService.GetCalendarEvent()
+	eventIcs, _ := calendarService.GetCalendarEvent()
 
 	cal, _ := ics.ParseCalendar(strings.NewReader(eventIcs))
 
@@ -726,7 +745,8 @@ func HandleGetUserCalendars(c *gin.Context) {
 
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s", remoteUrl, userId)
 
-	calendarService := CalendarServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: accessToken}
+	calendarService := CalendarServiceImpl{calendarRequestService}
 
 	userCalendars := calendarService.GetUserCalendars()
 

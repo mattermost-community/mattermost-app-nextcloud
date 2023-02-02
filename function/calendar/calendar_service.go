@@ -18,39 +18,37 @@ const (
 )
 
 type CalendarService interface {
-	CreateEvent(body string)
+	CreateEvent(body string) (*http.Response, error)
+	GetUrl() string
+	GetCalendarEvent() (string, error)
+	DeleteUserEvent() (*http.Response, error)
 	GetUserCalendars() []apps.SelectOption
-	GetCalendarEvents(event CalendarEventRequestRange) []string
+	GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string)
+	UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) (string, error)
 	AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding
 }
 
 type CalendarServiceImpl struct {
-	Url   string
-	Token string
+	calendarRequestService CalendarRequestService
+}
+
+func (c CalendarServiceImpl) GetUrl() string {
+	return c.calendarRequestService.getUrl()
+
 }
 
 func (c CalendarServiceImpl) CreateEvent(body string) (*http.Response, error) {
-
-	req, _ := http.NewRequest("PUT", c.Url, strings.NewReader(body))
-	req.Header.Set("Content-Type", "text/calendar; charset=UTF-8")
-	req.Header.Set("Depth", "0")
-	req.Header.Set("X-NC-CalDAV-Webcal-Caching", "On")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	defer resp.Body.Close()
-	if err != nil {
-		return nil, err
-	}
-	return resp, nil
+	return c.calendarRequestService.createEvent(body)
 }
 
 func (c CalendarServiceImpl) GetUserCalendars() []apps.SelectOption {
 
-	calendarsResponse := c.getUserCalendars()
-
 	selectOptions := make([]apps.SelectOption, 0)
+	calendarsResponse, err := c.calendarRequestService.getUserCalendars()
+
+	if err != nil {
+		return selectOptions
+	}
 
 	for _, r := range calendarsResponse.Response {
 
@@ -69,45 +67,15 @@ func (c CalendarServiceImpl) GetUserCalendars() []apps.SelectOption {
 	return selectOptions
 }
 
-func (c CalendarServiceImpl) getUserCalendars() UserCalendarsResponse {
-
-	body :=
-		`<d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
-	<d:prop>
-	   <d:displayname />
-	   <cs:getctag />
-	</d:prop>
-  </d:propfind>`
-
-	req, _ := http.NewRequest("PROPFIND", c.Url, strings.NewReader(body))
-	req.Header.Set("Content-Type", "text/xml")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	client := &http.Client{}
-	resp, _ := client.Do(req)
-	defer resp.Body.Close()
-
-	xmlResp := UserCalendarsResponse{}
-	xml.NewDecoder(resp.Body).Decode(&xmlResp)
-
-	return xmlResp
-}
-
-func (c CalendarServiceImpl) deleteUserEvent(url string, token string) {
-	req, _ := http.NewRequest("DELETE", url, nil)
-	client := &http.Client{}
-	req.Header.Set("Content-Type", "text/xml")
-	req.Header.Set("Authorization", "Bearer "+token)
-	resp, _ := client.Do(req)
-
-	defer resp.Body.Close()
-}
-
 func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string) {
 
-	resp := c.getCalendarEvents(event)
 	events := make([]string, 0)
 	eventsIds := make([]string, 0)
+
+	resp, err := c.calendarRequestService.getCalendarEvents(event)
+	if err != nil {
+		return events, eventsIds
+	}
 
 	for _, r := range resp.Response {
 		events = append(events, r.Propstat.Prop.CalendarData)
@@ -118,56 +86,6 @@ func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) 
 
 func getEventUrlByResponse(href string) string {
 	return strings.Split(href, "/")[6]
-}
-
-func (c CalendarServiceImpl) getCalendarEvents(event CalendarEventRequestRange) UserCalendarEventsResponse {
-
-	from := event.From.UTC().Format(icalTimestampFormatUtc)
-	to := event.To.UTC().Format(icalTimestampFormatUtc)
-
-	body := fmt.Sprintf(`<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav"
-    xmlns:cs="http://calendarserver.org/ns/"
-    xmlns:ca="http://apple.com/ns/ical/" 
-    xmlns:d="DAV:">                                                            
-    <d:prop>                
-        <c:calendar-data />
-    </d:prop>  
-        <c:filter>
-        <c:comp-filter name="VCALENDAR">
-            <c:comp-filter name="VEVENT">
-                <c:time-range start="%s" end="%s"/>
-            </c:comp-filter>
-        </c:comp-filter>
-    </c:filter>
-</c:calendar-query> `, from, to)
-
-	req, _ := http.NewRequest("REPORT", c.Url, strings.NewReader(body))
-	req.Header.Set("Content-Type", "text/xml")
-	req.Header.Set("Depth", "1")
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	client := &http.Client{}
-	resp, _ := client.Do(req)
-	defer resp.Body.Close()
-
-	xmlResp := UserCalendarEventsResponse{}
-	xml.NewDecoder(resp.Body).Decode(&xmlResp)
-
-	return xmlResp
-
-}
-
-func (c CalendarServiceImpl) GetCalendarEvent() string {
-	req, _ := http.NewRequest("GET", c.Url, nil)
-	req.Header.Set("Authorization", "Bearer "+c.Token)
-
-	client := &http.Client{}
-	resp, _ := client.Do(req)
-	defer resp.Body.Close()
-
-	event, _ := io.ReadAll(resp.Body)
-
-	return string(event)
 }
 
 func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) (string, error) {
@@ -236,4 +154,146 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 		})
 	}
 	return commandBinding
+}
+
+func (c CalendarServiceImpl) DeleteUserEvent() (*http.Response, error) {
+	return c.calendarRequestService.deleteUserEvent()
+}
+
+func (c CalendarServiceImpl) GetCalendarEvent() (string, error) {
+	return c.calendarRequestService.getCalendarEvent()
+}
+
+type CalendarRequestService interface {
+	getUrl() string
+	getCalendarEvent() (string, error)
+	getUserCalendars() (UserCalendarsResponse, error)
+	deleteUserEvent() (*http.Response, error)
+	getCalendarEvents(event CalendarEventRequestRange) (UserCalendarEventsResponse, error)
+	createEvent(body string) (*http.Response, error)
+}
+
+type CalendarRequestServiceImpl struct {
+	Url   string
+	Token string
+}
+
+func (c CalendarRequestServiceImpl) getUrl() string {
+	return c.Url
+}
+
+func (c CalendarRequestServiceImpl) getUserCalendars() (UserCalendarsResponse, error) {
+
+	body :=
+		`<d:propfind xmlns:d="DAV:" xmlns:cs="http://calendarserver.org/ns/">
+	<d:prop>
+	   <d:displayname />
+	   <cs:getctag />
+	</d:prop>
+  </d:propfind>`
+
+	req, _ := http.NewRequest("PROPFIND", c.Url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return UserCalendarsResponse{}, err
+	}
+
+	xmlResp := UserCalendarsResponse{}
+	xml.NewDecoder(resp.Body).Decode(&xmlResp)
+
+	return xmlResp, nil
+}
+
+func (c CalendarRequestServiceImpl) deleteUserEvent() (*http.Response, error) {
+	req, _ := http.NewRequest("DELETE", c.Url, nil)
+	client := &http.Client{}
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+
+func (c CalendarRequestServiceImpl) getCalendarEvents(event CalendarEventRequestRange) (UserCalendarEventsResponse, error) {
+
+	from := event.From.Format(icalTimestampFormatUtc)
+	to := event.To.Format(icalTimestampFormatUtc)
+
+	body := fmt.Sprintf(`<c:calendar-query xmlns:c="urn:ietf:params:xml:ns:caldav"
+    xmlns:cs="http://calendarserver.org/ns/"
+    xmlns:ca="http://apple.com/ns/ical/" 
+    xmlns:d="DAV:">                                                            
+    <d:prop>                
+        <c:calendar-data />
+    </d:prop>  
+        <c:filter>
+        <c:comp-filter name="VCALENDAR">
+            <c:comp-filter name="VEVENT">
+                <c:time-range start="%s" end="%s"/>
+            </c:comp-filter>
+        </c:comp-filter>
+    </c:filter>
+</c:calendar-query> `, from, to)
+
+	req, _ := http.NewRequest("REPORT", c.Url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/xml")
+	req.Header.Set("Depth", "1")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+
+	if err != nil {
+		return UserCalendarEventsResponse{}, err
+	}
+
+	xmlResp := UserCalendarEventsResponse{}
+	xml.NewDecoder(resp.Body).Decode(&xmlResp)
+
+	return xmlResp, err
+
+}
+
+func (c CalendarRequestServiceImpl) createEvent(body string) (*http.Response, error) {
+
+	req, _ := http.NewRequest("PUT", c.Url, strings.NewReader(body))
+	req.Header.Set("Content-Type", "text/calendar; charset=UTF-8")
+	req.Header.Set("Depth", "0")
+	req.Header.Set("X-NC-CalDAV-Webcal-Caching", "On")
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	return resp, nil
+}
+func (c CalendarRequestServiceImpl) getCalendarEvent() (string, error) {
+	req, _ := http.NewRequest("GET", c.Url, nil)
+	req.Header.Set("Authorization", "Bearer "+c.Token)
+
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	defer resp.Body.Close()
+
+	event, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(event), nil
 }
