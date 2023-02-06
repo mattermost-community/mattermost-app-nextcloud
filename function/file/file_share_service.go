@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	"github.com/mattermost/mattermost-server/v6/model"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 )
 
@@ -54,6 +55,12 @@ func (s FileShareServiceImpl) GetAllUserShares() (*SharedFilesResponseBody, erro
 		return nil, err
 	}
 
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
+
 	xmlResp := SharedFilesResponseBody{}
 	xml.NewDecoder(resp.Body).Decode(&xmlResp)
 
@@ -75,6 +82,12 @@ func (s FileShareServiceImpl) CreateUserShare(filePath string, shareType int32) 
 
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
 	}
 
 	xmlResp := SharedFileResponseBody{}

@@ -35,9 +35,13 @@ func FileUploadForm(c *gin.Context) {
 	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
 
 	body := createSearchRequestBody(userId, "")
-	resp := sendFileSearchRequest(url, body, token.AccessToken)
+	fileSearchRequestService := FileSearchServiceRequestServiceImpl{url: url, accessToken: token.AccessToken}
+	resp, err := fileSearchRequestService.sendFileSearchRequest(body)
+	if err != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during file search")))
+	}
 	searchService := SearchSelectOptionsImpl{}
-	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(resp, userId, "Root", "/")
+	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(*resp, userId, "Root", "/")
 
 	fileSelectOptions := make([]apps.SelectOption, 0)
 	fileInfos, _, _ := asActingUser.GetFileInfosForPost(creq.Context.Post.Id, "")
@@ -111,7 +115,12 @@ func FileShareForm(c *gin.Context) {
 	url := fmt.Sprintf("%s%s", remoteUrl, "/remote.php/dav/")
 
 	fileSearchBody := createSearchRequestBody(userId+folderName, "")
-	FileSearchResp := sendFileSearchRequest(url, fileSearchBody, accessToken)
+	fileSearchRequestService := FileSearchServiceRequestServiceImpl{url: url, accessToken: accessToken}
+	FileSearchResp, err := fileSearchRequestService.sendFileSearchRequest(fileSearchBody)
+
+	if err != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during file search")))
+	}
 
 	files := FileSearchResp.FileResponse
 
@@ -124,8 +133,13 @@ func FileShareForm(c *gin.Context) {
 	fileSelectOptions := searchService.CreateFileSelectOptions(files)
 
 	folderSearchBody := createSearchRequestBody(userId, "")
-	folderSearchResp := sendFileSearchRequest(url, folderSearchBody, accessToken)
-	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(folderSearchResp, userId, "Root", "")
+	folderSearchResp, folderSearchError := fileSearchRequestService.sendFileSearchRequest(folderSearchBody)
+
+	if folderSearchError != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during folder search")))
+	}
+
+	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(*folderSearchResp, userId, "Root", "")
 
 	if creq.Values["Folder"] != nil {
 		for _, so := range folderSelectOptions {

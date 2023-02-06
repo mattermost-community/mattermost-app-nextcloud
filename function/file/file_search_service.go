@@ -4,21 +4,37 @@ import (
 	"encoding/xml"
 	"fmt"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
+	log "github.com/sirupsen/logrus"
 	"net/http"
 	"strings"
 )
 
-func sendFileSearchRequest(url string, body string, accessToken string) FileSearchResponseBody {
-	req, _ := http.NewRequest("SEARCH", url, strings.NewReader(body))
+type FileSearchServiceRequestServiceImpl struct {
+	url         string
+	accessToken string
+}
+
+func (s FileSearchServiceRequestServiceImpl) sendFileSearchRequest(body string) (*FileSearchResponseBody, error) {
+	req, _ := http.NewRequest("SEARCH", s.url, strings.NewReader(body))
 	req.Header.Set("Content-Type", "text/xml")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Authorization", "Bearer "+s.accessToken)
 	client := &http.Client{}
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
 	defer resp.Body.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusMultiStatus {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
 
 	xmlResp := FileSearchResponseBody{}
 	xml.NewDecoder(resp.Body).Decode(&xmlResp)
-	return xmlResp
+	return &xmlResp, nil
 }
 
 func createSearchRequestBody(userName string, fileName string) string {

@@ -31,6 +31,12 @@ func (f *FileChunkServiceImpl) createChunkFolder(url string) (*http.Response, er
 
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusCreated {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
+
 	return resp, err
 }
 
@@ -45,6 +51,11 @@ func (f *FileChunkServiceImpl) uploadFileChunk(file []byte, start string, end st
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
 	return resp, err
 }
 
@@ -62,6 +73,12 @@ func (f *FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusCreated {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
+
 	return resp, err
 }
 
@@ -75,6 +92,12 @@ func (f *FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, err
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		log.Errorf("request failed with status %s", resp.Status)
+		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
+		return nil, error
+	}
 
 	return resp, err
 }
