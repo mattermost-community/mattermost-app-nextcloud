@@ -4,7 +4,6 @@ import (
 	"encoding/xml"
 	ics "github.com/arran4/golang-ical"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
-	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"time"
 )
 
@@ -21,28 +20,36 @@ type NextcloudXmlResponseHeaders struct {
 
 type UserCalendarsResponse struct {
 	NextcloudXmlResponseHeaders
-	Response []struct {
-		Text     string `xml:",chardata"`
-		Href     string `xml:"href"`
-		Propstat struct {
-			Text string `xml:",chardata"`
-			Prop struct {
-				Text        string `xml:",chardata"`
-				Displayname string `xml:"displayname"`
-				Getctag     string `xml:"getctag"`
-			} `xml:"prop"`
-			Status string `xml:"status"`
-		} `xml:"propstat"`
-	} `xml:"response"`
+	Response []UserCalendarsResponseItems `xml:"response"`
+}
+
+type UserCalendarsResponseItems struct {
+	Text     string               `xml:",chardata"`
+	Href     string               `xml:"href"`
+	Propstat UserCalendarPropstat `xml:"propstat"`
+}
+
+type UserCalendarPropstat struct {
+	Text   string           `xml:",chardata"`
+	Prop   UserCalendarProp `xml:"prop"`
+	Status string           `xml:"status"`
+}
+
+type UserCalendarProp struct {
+	Text        string `xml:",chardata"`
+	Displayname string `xml:"displayname"`
+	Getctag     string `xml:"getctag"`
 }
 
 type UserCalendarEventsResponse struct {
 	NextcloudXmlResponseHeaders
-	Response []struct {
-		Text     string           `xml:",chardata"`
-		Href     string           `xml:"href"`
-		Propstat CalendarPropStat `xml:"propstat"`
-	} `xml:"response"`
+	Response []UserCalendarEventsResponseItems `xml:"response"`
+}
+
+type UserCalendarEventsResponseItems struct {
+	Text     string           `xml:",chardata"`
+	Href     string           `xml:"href"`
+	Propstat CalendarPropStat `xml:"propstat"`
 }
 
 type CalendarPropStat struct {
@@ -68,7 +75,7 @@ type CalendarEventRequestRange struct {
 
 type CalendarEventPostDTO struct {
 	event      *ics.VEvent
-	bot        *appclient.Client
+	bot        GetMMUser
 	calendarId string
 	eventId    string
 	loc        *time.Location

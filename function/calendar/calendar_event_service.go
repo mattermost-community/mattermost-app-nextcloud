@@ -4,14 +4,14 @@ import (
 	ics "github.com/arran4/golang-ical"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
-	"github.com/mattermost/mattermost-plugin-apps/apps/appclient"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type CalendarEventServiceImpl struct {
-	creq apps.CallRequest
+	creq  apps.CallRequest
+	asBot GetMMUser
 }
 
 func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration string, timezone string) (string, string) {
@@ -27,9 +27,7 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 
 	organizerId := c.creq.Context.ActingUser.Id
 
-	asBot := appclient.AsBot(c.creq.Context)
-
-	organizer, _, _ := asBot.GetUser(organizerId, "")
+	organizer, _, _ := c.asBot.GetUser(organizerId, "")
 
 	newUUid := uuid.New()
 	id := newUUid.String()
@@ -49,7 +47,7 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 	event.SetOrganizer("mailto:"+organizer.Email, ics.WithCN("Owner"))
 
 	if c.creq.Values["attendees"] != nil {
-		addAttendeesToEvent(c.creq.Values["attendees"].([]interface{}), asBot, event)
+		addAttendeesToEvent(c.creq.Values["attendees"].([]interface{}), c.asBot, event)
 	}
 
 	text := cal.Serialize()
@@ -57,17 +55,7 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 
 }
 
-func FindAttendeeStatus(client *appclient.Client, event ics.VEvent, userId string) ics.ParticipationStatus {
-	user, _, _ := client.GetUser(userId, "")
-	for _, a := range event.Attendees() {
-		if user.Email == a.Email() {
-			return a.ParticipationStatus()
-		}
-	}
-	return ""
-}
-
-func addAttendeesToEvent(attendee []interface{}, asBot *appclient.Client, event *ics.VEvent) {
+func addAttendeesToEvent(attendee []interface{}, asBot GetMMUser, event *ics.VEvent) {
 
 	userIds := make([]string, 0)
 	for _, a := range attendee {
