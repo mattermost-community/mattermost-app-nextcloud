@@ -26,7 +26,7 @@ func (s *FileFullUploadServiceImpl) UploadFile(file []byte, url string) (*http.R
 		return nil, err
 	}
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
 		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
 		return nil, error

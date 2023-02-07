@@ -73,7 +73,7 @@ func (f *FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
 		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
 		return nil, error
@@ -93,7 +93,7 @@ func (f *FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusNoContent {
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
 		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
 		return nil, error
