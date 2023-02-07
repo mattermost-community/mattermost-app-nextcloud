@@ -9,8 +9,9 @@ A Nextcloud app for Mattermost.
 2. Install/Enable Apps plugin  https://github.com/mattermost/mattermost-plugin-apps
 3. Run NC server `docker run -d -p 8081:80 nextcloud:latest`
 4. Crete NC admin account via opening NC link http://localhost:8081
-5. Inside docker container in config.php add NC ngrok url to trusted domains
->  cd config <br />
+5. Inside docker container find config.php and add NC ngrok url to trusted domains
+> docker exec -it %NEXTCLOUD_SERVER_DOCKER_CONTAINER_ID% /bin/sh  <br />
+   cd config <br />
    apt-get update <br />
    apt-get install nano <br />
    nano config.php <br />
@@ -21,12 +22,15 @@ array ( <br />
 0 => 'localhost:8081', <br />
 1 => '%YOUR_NC_DOMAIN%.ngrok.io',<br />
 ),
-5. Register a NC app - http://YOUR_NC_URL/settings/YOUR_ADMIN_USER/security
+
+`Note`: For HTTPS connection add to config.php
+> 'overwriteprotocol' => 'https', <br />
+6. Register a NC app - http://YOUR_NC_URL/settings/YOUR_ADMIN_USER/security
     * as a callback url use - http://YOUR_MM_SERVER/plugins/com.mattermost.apps/apps/nextcloud/oauth2/remote/complete
     * Copy the client secret for a future step
-6. Run Nextcloud integration server app
+7. Run Nextcloud integration server app
     * Run `docker-compose up` in the root of the Nextcloud App repository
-7. In mattermost channel run `/apps install http http://localhost:8082/manifest.json`
+8. In mattermost channel run `/apps install http http://localhost:8082/manifest.json`
 
 #### Link MM account with Nextcloud
 
