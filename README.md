@@ -31,6 +31,7 @@ array ( <br />
 7. Run Nextcloud integration server app
     * Run `docker-compose up` in the root of the Nextcloud App repository
 8. In mattermost channel run `/apps install http http://localhost:8082/manifest.json`
+   <br /> `Note`: For http deploy type JWT_SECRET env variable contains value for Outgoing JWT Secret field 
 
 #### Link MM account with Nextcloud
 
@@ -62,8 +63,7 @@ Add environmental variables:   <br />
 CHUNK_FILE_SIZE_MB <br />
 MAX_FILE_SIZE_MB <br />
 MAX_FILES_SIZE_MB <br />
-JWT_SECRET <br />
-GIN_MODE=release 
+GIN_MODE=release <br />
 
 #### HTTP configuration
 Add environmental variables:   <br />
