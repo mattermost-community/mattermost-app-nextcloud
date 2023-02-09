@@ -19,7 +19,9 @@ import (
 
 func HandleCreateEvent(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleCreateEvent") {
+		return
+	}
 
 	oauthService := oauth.OauthServiceImpl{creq}
 
@@ -27,7 +29,9 @@ func HandleCreateEvent(c *gin.Context) {
 	accessToken := token.AccessToken
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleCreateEvent") {
+		return
+	}
 
 	calendarEventService := CalendarEventServiceImpl{creq, asActingUser}
 	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
@@ -86,12 +90,18 @@ func DMEventPost(creq apps.CallRequest, calendarService CalendarService, calenda
 	post := createCalendarEventPostService.CreateCalendarEventPost(&postDto)
 	post.Message = "Event created"
 	mmUserId := creq.Context.ActingUser.Id
-	asBot.DMPost(mmUserId, post)
+	_, dmError := asBot.DMPost(mmUserId, post)
+	if dmError != nil {
+		log.Errorf("Can`t send event post to user with id %s", mmUserId)
+		return
+	}
 }
 
 func RedirectToAMeeting(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "RedirectToAMeeting") {
+		return
+	}
 	link := fmt.Sprint(creq.State)
 	response := apps.CallResponse{Type: apps.CallResponseTypeNavigate, NavigateToURL: link}
 	c.JSON(http.StatusOK, response)
@@ -99,13 +109,17 @@ func RedirectToAMeeting(c *gin.Context) {
 
 func HandleCreateEventForm(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleCreateEventForm") {
+		return
+	}
 
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleCreateEventForm") {
+		return
+	}
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -204,13 +218,17 @@ func DoNothing(c *gin.Context) {
 
 func HandleDeleteCalendarEvent(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleDeleteCalendarEvent") {
+		return
+	}
 	calendarId := c.Param("calendarId")
 	eventId := c.Param("eventId")
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleDeleteCalendarEvent") {
+		return
+	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	user := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	deleteUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, user, calendarId, eventId)
@@ -220,7 +238,9 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	_, err := calendarService.DeleteUserEvent()
 
 	if err != nil {
+		log.Errorf("Can`t delete event with id %s: %s", eventId, err.Error())
 		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Event was not deleted")))
+		return
 	}
 
 	c.JSON(http.StatusOK, apps.NewTextResponse("Event deleted"))
@@ -228,7 +248,9 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 
 func GetUserSelectedEventsDate(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "GetUserSelectedEventsDate") {
+		return
+	}
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	calendarTimePostService := CalendarTimePostService{}
 
@@ -271,12 +293,16 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 
 func HandleGetEventsToday(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleGetEventsToday") {
+		return
+	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsToday") {
+		return
+	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -301,12 +327,16 @@ func HandleGetEventsToday(c *gin.Context) {
 
 func HandleGetEventsTomorrow(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleGetEventsTomorrow") {
+		return
+	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsTomorrow") {
+		return
+	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -332,12 +362,16 @@ func HandleGetEventsTomorrow(c *gin.Context) {
 func HandleGetEventsAtSelectedDay(c *gin.Context) {
 	calendar := c.Param("calendar")
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleGetEventsAtSelectedDay") {
+		return
+	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsAtSelectedDay") {
+		return
+	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s", remoteUrl, userId, calendar)
@@ -355,7 +389,9 @@ func HandleGetEventsAtSelectedDay(c *gin.Context) {
 	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
 	from, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", fromDateUTC)
 	if err != nil {
-		println(err.Error())
+		log.Errorf("Error during parsing time %s", fromDateUTC)
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: fmt.Sprintf("Error during parsing time %s", fromDateUTC)})
+		return
 	}
 	getEventErr := service.GetUserEvents(creq, from.In(location), calendar)
 	if getEventErr != nil {
@@ -367,12 +403,16 @@ func HandleGetEventsAtSelectedDay(c *gin.Context) {
 
 func HandleChangeEventStatus(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleChangeEventStatus") {
+		return
+	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 	accessToken := token.AccessToken
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
+		return
+	}
 
 	user, _, _ := asActingUser.GetUser(creq.Context.ActingUser.Id, "")
 
@@ -387,33 +427,47 @@ func HandleChangeEventStatus(c *gin.Context) {
 	calendarRequestService := CalendarRequestServiceImpl{Url: reqUrl, Token: accessToken}
 	calendarService := CalendarServiceImpl{calendarRequestService: calendarRequestService}
 
-	eventIcs, _ := calendarService.GetCalendarEvent()
+	eventIcs, getCalErr := calendarService.GetCalendarEvent()
 
-	cal, _ := ics.ParseCalendar(strings.NewReader(eventIcs))
+	if getCalErr != nil {
+		log.Errorf("Error when trying to get calendar")
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Error when trying to get calendar"})
+		return
+	}
+
+	cal, parseError := ics.ParseCalendar(strings.NewReader(eventIcs))
+	if parseError != nil {
+		log.Errorf("Error parsing calendar")
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Error when trying to parse calendar"})
+		return
+	}
 
 	body, error := calendarService.UpdateAttendeeStatus(cal, user, status)
 	if error != nil {
-		c.JSON(http.StatusOK, apps.NewTextResponse("Event is no longer valid"))
+		c.JSON(http.StatusOK, apps.NewTextResponse("This event is no longer valid"))
 		return
 	}
 	_, err := calendarService.CreateEvent(body)
 
 	if err != nil {
+		log.Errorf("Error during changing of event status: %s", err.Error())
 		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Event status was not updated"})
 		return
 	}
 
-	c.JSON(http.StatusOK, apps.NewTextResponse("event status updated:"+status))
+	c.JSON(http.StatusOK, apps.NewTextResponse("Event status updated: "+status))
 
 }
 
 func HandleGetParsedCalendarDate(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleGetParsedCalendarDate") {
+		return
+	}
 
 	ch, err := chrono.New()
 	if err != nil {
-		log.Error(err)
+		log.Error(err.Error())
 	}
 
 	now := time.Now()
@@ -434,12 +488,16 @@ func HandleGetParsedCalendarDate(c *gin.Context) {
 
 func HandleGetUserCalendars(c *gin.Context) {
 	creq := apps.CallRequest{}
-	json.NewDecoder(c.Request.Body).Decode(&creq)
+	if handleJsonParsingError(c, &creq, "HandleChangeEventStatus") {
+		return
+	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 	accessToken := token.AccessToken
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
+		return
+	}
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -462,8 +520,31 @@ func HandleGetUserCalendars(c *gin.Context) {
 
 	for _, c := range userCalendars {
 		post := calendarPostServiceImpl.CreateCalendarPost(c)
-		asBot.DMPost(creq.Context.ActingUser.Id, post)
+		_, dmError := asBot.DMPost(creq.Context.ActingUser.Id, post)
+		if dmError != nil {
+			log.Errorf("Error during sending of dmPost to a user with id %s: %s", creq.Context.ActingUser.Id, dmError.Error())
+		}
 	}
 	c.JSON(http.StatusOK, apps.NewTextResponse(""))
 
+}
+
+func handleJsonParsingError(c *gin.Context, creq *apps.CallRequest, methodName string) bool {
+	err := json.NewDecoder(c.Request.Body).Decode(creq)
+	if err != nil {
+		log.Errorf("Error during decoding of call request in %s method: %s", methodName, err.Error())
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Error during parsing of json request"})
+		return true
+	}
+	return false
+}
+
+func handleStoreTokenInMMError(c *gin.Context, asBot *appclient.Client, token oauth.Token, methodName string) bool {
+	err := asBot.StoreOAuth2User(token)
+	if err != nil {
+		log.Errorf("Error during storing of oauthToken in %s method: %s", methodName, err.Error())
+		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Error during parsing of json request"})
+		return true
+	}
+	return false
 }

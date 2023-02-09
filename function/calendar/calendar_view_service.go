@@ -7,6 +7,7 @@ import (
 	"github.com/mattermost/mattermost-server/v6/model"
 	"github.com/pkg/errors"
 	"github.com/prokhorind/nextcloud/function/oauth"
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strconv"
 	"strings"
@@ -189,7 +190,7 @@ func (s CalendarTimePostService) PrepareTimeRangeForGetEventsRequest(chosenDate 
 	date := chosenDate.Add(-time.Minute * time.Duration(chosenDate.Minute()))
 	date = date.Add(-time.Hour * time.Duration(chosenDate.Hour()))
 	date = date.Add(-time.Second * time.Duration(chosenDate.Second()))
-	return date.AddDate(0, 0, -1), date.AddDate(0, 0, 1)
+	return date.AddDate(0, 0, -2), date.AddDate(0, 0, 2)
 }
 
 func (s CalendarTimePostService) GetMMUserLocation(creq apps.CallRequest) *time.Location {
@@ -264,6 +265,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 		commandBinding.Bindings[i].Form.Fields = append(commandBinding.Bindings[i].Form.Fields, apps.Field{
 			Type:        apps.FieldTypeText,
 			Name:        "ZoomUrl",
+			ModalLabel:  "Zoom link",
 			Label:       "ZoomLink",
 			Value:       zoomLinks,
 			ReadOnly:    true,
@@ -277,6 +279,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 			Type:        apps.FieldTypeText,
 			Name:        "GoogleMeetUrl",
 			Label:       "Google-Meet-Link",
+			ModalLabel:  "Google Meet link",
 			Value:       googleMeetLinks,
 			ReadOnly:    true,
 			IsRequired:  true,
@@ -288,6 +291,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 		Type:        apps.FieldTypeText,
 		Name:        "Event-Import",
 		Label:       "Event-Import",
+		ModalLabel:  "Event import link",
 		Description: "Use this link to import event in your calendars",
 		Value:       icsLink,
 		ReadOnly:    true,
@@ -461,7 +465,10 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 	for i, e := range dailyCalendarEvents {
 		postDto := CalendarEventPostDTO{&e, s.GetMMUser, calendar, eventIds[i], loc, creq}
 		post := s.CreateCalendarEventPostService.CreateCalendarEventPost(&postDto)
-		s.GetMMUser.DMPost(mmUserId, post)
+		_, dmError := s.GetMMUser.DMPost(mmUserId, post)
+		if dmError != nil {
+			log.Errorf("Can`t send event post to a user with id %s: %s", mmUserId, dmError.Error())
+		}
 	}
 
 	return nil
