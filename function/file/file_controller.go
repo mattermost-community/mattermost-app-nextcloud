@@ -153,7 +153,8 @@ func FileShareForm(c *gin.Context) {
 	}
 
 	if len(fileSelectOptions) == 0 {
-		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Files not found")))
+		log.Error("Files do not have display name field")
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Files do not have display name. The outdated version of Nextcloud is used. Contact system administrator")))
 		return
 	}
 

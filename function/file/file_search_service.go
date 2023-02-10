@@ -99,6 +99,9 @@ func (SearchSelectOptionsImpl) CreateFileSelectOptions(files []FileResponse) []a
 		}
 		ref := f.Href
 		displayname := f.PropertyStats[0].Property.Displayname
+		if len(displayname) == 0 {
+			continue
+		}
 		refs := strings.Split(ref, "/")
 		r := strings.NewReplacer("%20", " ")
 
