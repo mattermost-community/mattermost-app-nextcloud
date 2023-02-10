@@ -73,6 +73,13 @@ type CalendarEventRequestRange struct {
 	To   time.Time
 }
 
+type CalendarEventData struct {
+	CalendarStr string
+	CalendarId  string
+	CalendarIcs ics.Calendar
+	Event       ics.VEvent
+}
+
 type CalendarEventPostDTO struct {
 	event      *ics.VEvent
 	bot        GetMMUser

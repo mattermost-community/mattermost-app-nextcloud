@@ -50,8 +50,8 @@ func TestGetCalendarEvents(t *testing.T) {
 	testedInstance := CalendarServiceImpl{calendarRequestService: CalendarEventServiceImplMock{}}
 	from := time.Now().AddDate(0, 0, -1)
 	now := time.Now()
-	events, ids := testedInstance.GetCalendarEvents(CalendarEventRequestRange{From: from, To: now})
-	if len(events) != 1 && len(ids) != 1 {
+	eventsData := testedInstance.GetCalendarEvents(CalendarEventRequestRange{From: from, To: now})
+	if len(eventsData) != 1 {
 		t.Error("Wrong number of events and eventIds returned")
 	}
 }
@@ -60,8 +60,8 @@ func TestGetCalendarEventsError(t *testing.T) {
 	testedInstance := CalendarServiceImpl{calendarRequestService: CalendarEventServiceImplMock{error: errors.New("test")}}
 	from := time.Now().AddDate(0, 0, -1)
 	now := time.Now()
-	events, ids := testedInstance.GetCalendarEvents(CalendarEventRequestRange{From: from, To: now})
-	if len(events) != 0 && len(ids) != 0 {
+	eventsData := testedInstance.GetCalendarEvents(CalendarEventRequestRange{From: from, To: now})
+	if len(eventsData) != 0 {
 		t.Error("Wrong number of events and eventIds returned")
 	}
 }

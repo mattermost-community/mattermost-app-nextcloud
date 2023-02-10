@@ -435,22 +435,24 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 		To:   to,
 	}
 
-	events, eventIds := s.CalendarService.GetCalendarEvents(eventRange)
-	calendarEvents := make([]ics.VEvent, 0)
+	calendarEventsData := s.CalendarService.GetCalendarEvents(eventRange)
+	calendarEventsFiltered := make([]CalendarEventData, 0)
 
-	for i := 0; i < len(events); i++ {
-		cal, _ := ics.ParseCalendar(strings.NewReader(events[i]))
+	for _, e := range calendarEventsData {
+		cal, _ := ics.ParseCalendar(strings.NewReader(e.CalendarStr))
+		e.CalendarIcs = *cal
 		event := *cal.Events()[0]
 		if len(event.Properties) != 0 {
-			calendarEvents = append(calendarEvents, event)
+			e.Event = event
+			calendarEventsFiltered = append(calendarEventsFiltered, e)
 		}
 	}
 
-	dailyCalendarEvents := make([]ics.VEvent, 0)
+	dailyCalendarEvents := make([]CalendarEventData, 0)
 
-	for _, e := range calendarEvents {
-		at, _ := e.GetStartAt()
-		endAt, _ := e.GetEndAt()
+	for _, e := range calendarEventsFiltered {
+		at, _ := e.Event.GetStartAt()
+		endAt, _ := e.Event.GetEndAt()
 		localStartTime := at.In(loc)
 		localEndTime := endAt.In(loc)
 		if localStartTime.Day() == date.Day() || localEndTime.Day() == date.Day() {
@@ -462,8 +464,8 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 		return errors.New("You don`t have events at this day")
 	}
 
-	for i, e := range dailyCalendarEvents {
-		postDto := CalendarEventPostDTO{&e, s.GetMMUser, calendar, eventIds[i], loc, creq}
+	for _, e := range dailyCalendarEvents {
+		postDto := CalendarEventPostDTO{&e.Event, s.GetMMUser, calendar, e.CalendarId, loc, creq}
 		post := s.CreateCalendarEventPostService.CreateCalendarEventPost(&postDto)
 		_, dmError := s.GetMMUser.DMPost(mmUserId, post)
 		if dmError != nil {

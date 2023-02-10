@@ -24,7 +24,7 @@ type CalendarService interface {
 	GetCalendarEvent() (string, error)
 	DeleteUserEvent() (*http.Response, error)
 	GetUserCalendars() []apps.SelectOption
-	GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string)
+	GetCalendarEvents(event CalendarEventRequestRange) []CalendarEventData
 	UpdateAttendeeStatus(cal *ics.Calendar, user *model.User, status string) (string, error)
 	AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding
 }
@@ -68,21 +68,22 @@ func (c CalendarServiceImpl) GetUserCalendars() []apps.SelectOption {
 	return selectOptions
 }
 
-func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) ([]string, []string) {
+func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) []CalendarEventData {
 
-	events := make([]string, 0)
-	eventsIds := make([]string, 0)
+	calendarEventData := make([]CalendarEventData, 0)
 
 	resp, err := c.calendarRequestService.getCalendarEvents(event)
 	if err != nil {
-		return events, eventsIds
+		return calendarEventData
 	}
 
 	for _, r := range resp.Response {
-		events = append(events, r.Propstat.Prop.CalendarData)
-		eventsIds = append(eventsIds, getEventUrlByResponse(r.Href))
+		eventData := CalendarEventData{}
+		eventData.CalendarStr = r.Propstat.Prop.CalendarData
+		eventData.CalendarId = getEventUrlByResponse(r.Href)
+		calendarEventData = append(calendarEventData, eventData)
 	}
-	return events, eventsIds
+	return calendarEventData
 }
 
 func getEventUrlByResponse(href string) string {
