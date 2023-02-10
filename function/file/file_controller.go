@@ -120,6 +120,7 @@ func FileShareForm(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during file search")))
+		return
 	}
 
 	files := FileSearchResp.FileResponse
@@ -137,6 +138,7 @@ func FileShareForm(c *gin.Context) {
 
 	if folderSearchError != nil {
 		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during folder search")))
+		return
 	}
 
 	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(*folderSearchResp, userId, "Root", "")
@@ -151,8 +153,8 @@ func FileShareForm(c *gin.Context) {
 	}
 
 	if len(fileSelectOptions) == 0 {
-		option := apps.SelectOption{Label: "", Value: ""}
-		fileSelectOptions = append(fileSelectOptions, option)
+		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Files not found")))
+		return
 	}
 
 	sort.Slice(fileSelectOptions, func(i, j int) bool {

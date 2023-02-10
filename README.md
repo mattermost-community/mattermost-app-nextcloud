@@ -9,6 +9,7 @@ A Nextcloud app for Mattermost.
 2. Install/Enable Apps plugin  https://github.com/mattermost/mattermost-plugin-apps
 3. Run NC server `docker run -d -p 8081:80 nextcloud:latest`
 4. Crete NC admin account via opening NC link http://localhost:8081
+   <br /> `Note`: After user creation install recommended apps 
 5. Inside docker container find config.php and add NC ngrok url to trusted domains
 > docker exec -it %NEXTCLOUD_SERVER_DOCKER_CONTAINER_ID% /bin/sh  <br />
    cd config <br />

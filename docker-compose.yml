@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  web:
+  mattermost-app-nextcloud:
     environment:
       - JWT_SECRET=secret
       - STATIC_FOLDER=static
