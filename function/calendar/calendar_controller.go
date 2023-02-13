@@ -157,7 +157,7 @@ func HandleCreateEventForm(c *gin.Context) {
 				Name:        "from-event-date",
 				Label:       "From",
 				IsRequired:  true,
-				Description: "Type \"Today\", \"Tomorrow\" or \"Monday 13:00\" to choose a date",
+				Description: "Type \"4 PM Today\", \"Next Tuesday\" or \"Monday 13:00\" to choose a date",
 				Value:       apps.SelectOption{Label: currentUserTime.Format(dateFormatService.GetDateTimeFormatsByLocale(parsedLocale)), Value: currentUserTime.String()},
 				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
@@ -269,7 +269,7 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 				Name:        "from-event-date",
 				Label:       "Date",
 				IsRequired:  true,
-				Description: "Type \"Today\", \"Tomorrow\" or \"Monday 13:00\" to choose a date",
+				Description: "Type \"4 PM Today\", \"Next Tuesday\" or \"Monday 13:00\" to choose a date",
 				Value:       apps.SelectOption{Label: currentUserTime.Format(dateFormatService.GetDateTimeFormatsByLocale(parsedLocale)), Value: currentUserTime.String()},
 				SelectDynamicLookup: apps.NewCall("/get-parsed-date").WithExpand(apps.Expand{
 					ActingUserAccessToken: apps.ExpandAll,
