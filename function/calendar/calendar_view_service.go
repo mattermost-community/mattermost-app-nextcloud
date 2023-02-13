@@ -167,6 +167,8 @@ func (s CreateCalendarEventPostService) createNameForEvent(name string, postDTO 
 	parsedLocale := dateFormatService.GetLocaleByTag(locale)
 	start, _ := postDTO.event.GetStartAt()
 	finish, _ := postDTO.event.GetEndAt()
+	start = start.In(postDTO.loc)
+	finish = finish.In(postDTO.loc)
 
 	format := dateFormatService.GetTimeFormatsByLocale(parsedLocale)
 	dayFormat := dateFormatService.GetFullFormatsByLocale(parsedLocale)
@@ -180,7 +182,7 @@ func (s CreateCalendarEventPostService) createNameForEvent(name string, postDTO 
 	}
 	remoteUrl := postDTO.creq.Context.OAuth2.RemoteRootURL
 	calendarUrl := fmt.Sprintf("%s%s%s-%s-%s", remoteUrl, "/apps/calendar/timeGridDay/", strconv.Itoa(start.Year()), month, day)
-	return fmt.Sprintf("[%s](%s) %s %s-%s", name, calendarUrl, start.In(postDTO.loc).Format(dayFormat), start.In(postDTO.loc).Format(format), finish.In(postDTO.loc).Format(format))
+	return fmt.Sprintf("[%s](%s) %s %s - %s", name, calendarUrl, start.Format(dayFormat), start.Format(format), finish.Format(format))
 }
 
 type CalendarTimePostService struct {
