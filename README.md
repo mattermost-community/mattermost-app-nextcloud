@@ -26,8 +26,8 @@ array ( <br />
 
 `Note`: For HTTPS connection add to config.php
 > 'overwriteprotocol' => 'https', <br />
-6. Register a NC app - http://YOUR_NC_URL/settings/YOUR_ADMIN_USER/security
-    * as a callback url use - http://YOUR_MM_SERVER/plugins/com.mattermost.apps/apps/nextcloud/oauth2/remote/complete
+6. Register a NC app - http(s)://YOUR_NC_URL/settings/admin/security
+    * as a callback url use - http(s)://YOUR_MM_SERVER/plugins/com.mattermost.apps/apps/nextcloud/oauth2/remote/complete
     * Copy the client secret for a future step
 7. Run Nextcloud integration server app
     * Run `docker-compose up` in the root of the Nextcloud App repository
