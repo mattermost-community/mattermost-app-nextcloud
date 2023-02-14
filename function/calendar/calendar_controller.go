@@ -32,6 +32,7 @@ func HandleCreateEvent(c *gin.Context) {
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleCreateEvent") {
 		return
 	}
+	log.Infof("Received a create event request for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	calendarEventService := CalendarEventServiceImpl{creq, asActingUser}
 	fromDateUTC := creq.Values["from-event-date"].(map[string]interface{})["value"].(string)
@@ -58,6 +59,7 @@ func HandleCreateEvent(c *gin.Context) {
 	_, err := calendarService.CreateEvent(body)
 
 	if err != nil {
+		log.Errorf("Error creating an event with uuid %s Error: %s", uuid, err)
 		c.JSON(http.StatusOK, apps.CallResponse{Type: apps.CallResponseTypeError, Text: "Calendar event was not created"})
 		return
 	}
@@ -74,12 +76,14 @@ func DMEventPost(creq apps.CallRequest, calendarService CalendarService, calenda
 		log.Error("Event was not found", calendarService.GetUrl())
 		return
 	}
+	log.Info("Parsing calendar event")
 	cal, parseError := ics.ParseCalendar(strings.NewReader(event))
 	if parseError != nil {
 		log.Errorf("Can't parse calendar for event %s", calendarService.GetUrl())
 		return
 	}
 	vEvent := cal.Events()[0]
+	log.Infof("Parsed an event with id: %s", vEvent.Id())
 	calendarTimePostService := CalendarTimePostService{}
 
 	loc := calendarTimePostService.GetMMUserLocation(creq)
@@ -90,6 +94,7 @@ func DMEventPost(creq apps.CallRequest, calendarService CalendarService, calenda
 	post := createCalendarEventPostService.CreateCalendarEventPost(&postDto)
 	post.Message = "Event created"
 	mmUserId := creq.Context.ActingUser.Id
+	log.Infof("Sending the event post with id: %s for a mm user with id: %s", postDto.eventId, mmUserId)
 	_, dmError := asBot.DMPost(mmUserId, post)
 	if dmError != nil {
 		log.Errorf("Can`t send event post to user with id %s", mmUserId)
@@ -102,6 +107,7 @@ func RedirectToAMeeting(c *gin.Context) {
 	if handleJsonParsingError(c, &creq, "RedirectToAMeeting") {
 		return
 	}
+	log.Infof("Received a redirect to a meeting request for the user with id: %s to a meeting link", creq.Context.ActingUser.Id)
 	link := fmt.Sprint(creq.State)
 	response := apps.CallResponse{Type: apps.CallResponseTypeNavigate, NavigateToURL: link}
 	c.JSON(http.StatusOK, response)
@@ -121,6 +127,7 @@ func HandleCreateEventForm(c *gin.Context) {
 		return
 	}
 
+	log.Infof("Received a create event form request for a mm user with id: %s", creq.Context.ActingUser.Id)
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 
@@ -142,6 +149,7 @@ func HandleCreateEventForm(c *gin.Context) {
 	parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
 	calendarPostServiceImpl := CalendarPostServiceImpl{}
 
+	log.Info("Creating calendar event form")
 	form := &apps.Form{
 		Title: "Create Nextcloud calendar event",
 		Icon:  "icon.png",
@@ -208,6 +216,8 @@ func HandleCreateEventForm(c *gin.Context) {
 		}),
 	}
 
+	log.Infof("Sending calendar event form to the user with the id: %s", creq.Context.ActingUser.Id)
+
 	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
 }
 
@@ -221,14 +231,17 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	if handleJsonParsingError(c, &creq, "HandleDeleteCalendarEvent") {
 		return
 	}
-	calendarId := c.Param("calendarId")
-	eventId := c.Param("eventId")
+
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
 	asActingUser := appclient.AsActingUser(creq.Context)
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleDeleteCalendarEvent") {
 		return
 	}
+	log.Infof("Received a delete event request for the mm user with id: %s", creq.Context.ActingUser.Id)
+
+	calendarId := c.Param("calendarId")
+	eventId := c.Param("eventId")
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	user := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	deleteUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s/%s", remoteUrl, user, calendarId, eventId)
@@ -243,6 +256,8 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 		return
 	}
 
+	log.Infof("Event with id %s deleted", eventId)
+
 	c.JSON(http.StatusOK, apps.NewTextResponse("Event deleted"))
 }
 
@@ -251,6 +266,8 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 	if handleJsonParsingError(c, &creq, "GetUserSelectedEventsDate") {
 		return
 	}
+
+	log.Infof("Received a request to create select date form for the mm user with id: %s", creq.Context.ActingUser.Id)
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	calendarTimePostService := CalendarTimePostService{}
 
@@ -260,6 +277,7 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 	dateFormatService := DateFormatLocaleService{}
 	parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
 
+	log.Info("Creating select date form")
 	form := &apps.Form{
 		Title: "Nextcloud calendar events",
 		Icon:  "icon.png",
@@ -288,6 +306,7 @@ func GetUserSelectedEventsDate(c *gin.Context) {
 			ActingUser:            apps.ExpandAll,
 		}),
 	}
+	log.Infof("Sending select date form for a mm user with id: %s", creq.Context.ActingUser.Id)
 	c.JSON(http.StatusOK, apps.NewFormResponse(*form))
 }
 
@@ -298,6 +317,7 @@ func HandleGetEventsToday(c *gin.Context) {
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
 	token := oauthService.RefreshToken()
+	log.Infof("Received a get events request for today for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	asActingUser := appclient.AsActingUser(creq.Context)
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsToday") {
@@ -337,6 +357,8 @@ func HandleGetEventsTomorrow(c *gin.Context) {
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsTomorrow") {
 		return
 	}
+	log.Infof("Received a get events request for tomorrow for the mm user with id: %s", creq.Context.ActingUser.Id)
+
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	calendar := creq.Call.State.(map[string]interface{})["value"].(string)
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -372,6 +394,8 @@ func HandleGetEventsAtSelectedDay(c *gin.Context) {
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsAtSelectedDay") {
 		return
 	}
+	log.Infof("Received a get events request for a selected date for the mm user with id: %s", creq.Context.ActingUser.Id)
+
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 	reqUrl := fmt.Sprintf("%s/remote.php/dav/calendars/%s/%s", remoteUrl, userId, calendar)
@@ -413,6 +437,7 @@ func HandleChangeEventStatus(c *gin.Context) {
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
 		return
 	}
+	log.Infof("Received a change event status request for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	user, _, _ := asActingUser.GetUser(creq.Context.ActingUser.Id, "")
 
@@ -435,6 +460,7 @@ func HandleChangeEventStatus(c *gin.Context) {
 		return
 	}
 
+	log.Infof("Parsing event")
 	cal, parseError := ics.ParseCalendar(strings.NewReader(eventIcs))
 	if parseError != nil {
 		log.Errorf("Error parsing calendar")
@@ -464,6 +490,7 @@ func HandleGetParsedCalendarDate(c *gin.Context) {
 	if handleJsonParsingError(c, &creq, "HandleGetParsedCalendarDate") {
 		return
 	}
+	log.Infof("Received a request to parse a string to time for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	ch, err := chrono.New()
 	if err != nil {
@@ -498,6 +525,7 @@ func HandleGetUserCalendars(c *gin.Context) {
 	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
 		return
 	}
+	log.Infof("Received a get user calendars request for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
@@ -520,6 +548,7 @@ func HandleGetUserCalendars(c *gin.Context) {
 
 	for _, c := range userCalendars {
 		post := calendarPostServiceImpl.CreateCalendarPost(c)
+		log.Infof("Sending calendar post for the mm user with the id: %s", creq.Context.ActingUser.Id)
 		_, dmError := asBot.DMPost(creq.Context.ActingUser.Id, post)
 		if dmError != nil {
 			log.Errorf("Error during sending of dmPost to a user with id %s: %s", creq.Context.ActingUser.Id, dmError.Error())

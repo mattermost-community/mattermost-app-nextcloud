@@ -4,6 +4,7 @@ import (
 	ics "github.com/arran4/golang-ical"
 	"github.com/google/uuid"
 	"github.com/mattermost/mattermost-plugin-apps/apps"
+	log "github.com/sirupsen/logrus"
 	"strconv"
 	"strings"
 	"time"
@@ -15,7 +16,7 @@ type CalendarEventServiceImpl struct {
 }
 
 func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration string, timezone string) (string, string) {
-
+	log.Info("Creating event body")
 	from, err := time.Parse("2006-01-02 15:04:05.999999999 -0700 MST", fromDateUTC)
 	if err != nil {
 		println(err.Error())
@@ -51,6 +52,7 @@ func (c CalendarEventServiceImpl) CreateEventBody(fromDateUTC string, duration s
 	}
 
 	text := cal.Serialize()
+	log.Infof("Event body with uuid %s created", id)
 	return id, text
 
 }

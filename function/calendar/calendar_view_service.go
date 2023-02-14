@@ -22,6 +22,7 @@ type CalendarPostServiceImpl struct {
 }
 
 func (c CalendarPostServiceImpl) CreateCalendarPost(option apps.SelectOption) *model.Post {
+	log.Info("Creating calendar post")
 	post := model.Post{}
 	commandBinding := apps.Binding{
 		Location:    "embedded",
@@ -162,6 +163,7 @@ func (s DetailsViewFormService) createDateForEventInForm(postDTO *CalendarEventP
 }
 
 func (s CreateCalendarEventPostService) createNameForEvent(name string, postDTO *CalendarEventPostDTO) string {
+	log.Infof("Creating name and link for the event with id: %s", postDTO.eventId)
 	locale := postDTO.creq.Context.ActingUser.Locale
 	dateFormatService := DateFormatLocaleService{}
 	parsedLocale := dateFormatService.GetLocaleByTag(locale)
@@ -196,6 +198,7 @@ func (s CalendarTimePostService) PrepareTimeRangeForGetEventsRequest(chosenDate 
 }
 
 func (s CalendarTimePostService) GetMMUserLocation(creq apps.CallRequest) *time.Location {
+	log.Info("Getting mm user location")
 	var timezone string
 	var loc *time.Location
 	if creq.Context.ActingUser.Timezone["useAutomaticTimezone"] == "false" {
@@ -208,6 +211,7 @@ func (s CalendarTimePostService) GetMMUserLocation(creq apps.CallRequest) *time.
 }
 
 func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, location apps.Location, organizer string, label string, postDTO *CalendarEventPostDTO, formTitle string, icsLink string) {
+	log.Infof("Creating a view button for the event with id: %s", postDTO.eventId)
 	event := postDTO.event
 	property := event.GetProperty(ics.ComponentPropertyDescription)
 	var description string
@@ -275,6 +279,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 			TextSubtype: apps.TextFieldSubtypeURL,
 		})
 		s.createMeetingStartButton(commandBinding, strings.Split(zoomLinks, " ")[0], "Zoom")
+		log.Info("Zoom link added")
 	}
 	if len(googleMeetLinks) != 0 {
 		commandBinding.Bindings[i].Form.Fields = append(commandBinding.Bindings[i].Form.Fields, apps.Field{
@@ -288,6 +293,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 			TextSubtype: apps.TextFieldSubtypeURL,
 		})
 		s.createMeetingStartButton(commandBinding, strings.Split(googleMeetLinks, " ")[0], "Google Meet")
+		log.Info("Google meet button added")
 	}
 	commandBinding.Bindings[i].Form.Fields = append(commandBinding.Bindings[i].Form.Fields, apps.Field{
 		Type:        apps.FieldTypeText,
@@ -300,9 +306,11 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 		IsRequired:  true,
 		TextSubtype: apps.TextFieldSubtypeURL,
 	})
+	log.Info("Fields to a view button form added")
 }
 
 func (s DetailsViewFormService) getZoomAndGoogleMeetLinksFromDescription(description string) (string, string) {
+	log.Info("Parsing links from description")
 	zoomPattern := regexp.MustCompile(`https:\/\/[\w-]*\.?zoom.us\/(j|my)\/[\d\w?=-]+`)
 	googleMeetPattern := regexp.MustCompile(`https?:\/\/(.+?\.)?meet\.google\.com(\/[A-Za-z0-9\-]*)?`)
 	zoomLinks := zoomPattern.FindAllString(description, -1)
@@ -330,6 +338,7 @@ type CreateCalendarEventPostService struct {
 }
 
 func (s CreateCalendarEventPostService) CreateCalendarEventPost(postDTO *CalendarEventPostDTO) *model.Post {
+	log.Infof("Creating an event post for the event with id: %s", postDTO.eventId)
 	var name, organizer, eventStatus string
 	for _, e := range postDTO.event.Properties {
 		if e.BaseProperty.IANAToken == "ORGANIZER" {
@@ -358,12 +367,14 @@ func (s CreateCalendarEventPostService) CreateCalendarEventPost(postDTO *Calenda
 	calendarService := CalendarServiceImpl{}
 
 	if eventStatus == "CANCELLED" {
+		log.Info("This event is canceled")
 		commandBinding.Label = fmt.Sprintf("Cancelled ~~%s~~", commandBinding.Label)
 		commandBinding.Description = fmt.Sprintf("~~%s~~", commandBinding.Description)
 		m1 := make(map[string]interface{})
 		m1["app_bindings"] = []apps.Binding{commandBinding}
 
 		post.SetProps(m1)
+		log.Info("Calendar event post created")
 
 		return &post
 	}
@@ -383,10 +394,12 @@ func (s CreateCalendarEventPostService) CreateCalendarEventPost(postDTO *Calenda
 	detailButtonService := DetailsViewFormService{}
 	detailButtonService.CreateViewButton(&commandBinding, "view-details", organizer, "View Details", postDTO, name, reqUrl)
 	s.сreateDeleteButton(&commandBinding, "Delete", "Delete", deletePath)
+	log.Info("Delete button added")
 	m1 := make(map[string]interface{})
 	m1["app_bindings"] = []apps.Binding{commandBinding}
 
 	post.SetProps(m1)
+	log.Info("Calendar event post created")
 
 	return &post
 }
@@ -440,6 +453,7 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 	calendarEventsData := s.CalendarService.GetCalendarEvents(eventRange)
 	calendarEventsFiltered := make([]CalendarEventData, 0)
 
+	log.Info("Parsing calendar events")
 	for _, e := range calendarEventsData {
 		cal, _ := ics.ParseCalendar(strings.NewReader(e.CalendarStr))
 		e.CalendarIcs = *cal
@@ -469,6 +483,7 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 	for _, e := range dailyCalendarEvents {
 		postDto := CalendarEventPostDTO{&e.Event, s.GetMMUser, calendar, e.CalendarId, loc, creq}
 		post := s.CreateCalendarEventPostService.CreateCalendarEventPost(&postDto)
+		log.Infof("Sending the event post with id: %s for the mm user with id: %s", e.Event.Id(), mmUserId)
 		_, dmError := s.GetMMUser.DMPost(mmUserId, post)
 		if dmError != nil {
 			log.Errorf("Can`t send event post to a user with id %s: %s", mmUserId, dmError.Error())

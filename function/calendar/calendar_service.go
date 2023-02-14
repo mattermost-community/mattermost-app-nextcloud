@@ -69,7 +69,7 @@ func (c CalendarServiceImpl) GetUserCalendars() []apps.SelectOption {
 }
 
 func (c CalendarServiceImpl) GetCalendarEvents(event CalendarEventRequestRange) []CalendarEventData {
-
+	log.Infof("Sending get calendar events request with a date range from %s to %s", event.From.String(), event.To.String())
 	calendarEventData := make([]CalendarEventData, 0)
 
 	resp, err := c.calendarRequestService.getCalendarEvents(event)
@@ -97,6 +97,7 @@ func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model
 	for _, e := range cal.Events() {
 		for _, a := range e.Attendees() {
 			if user.Email == a.Email() {
+				log.Infof("Updating event status in the event with id: %s for the user with an email %s", e.Id(), a.Email())
 				a.ICalParameters["PARTSTAT"] = []string{status}
 				break
 			}
@@ -106,6 +107,7 @@ func (c CalendarServiceImpl) UpdateAttendeeStatus(cal *ics.Calendar, user *model
 }
 
 func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, status string, path string) apps.Binding {
+	log.Info("Adding buttons to the event post")
 	var label string
 	if len(status) != 0 && status != "NEEDS-ACTION" {
 		label = status
@@ -129,6 +131,7 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 				ActingUser:            apps.ExpandAll,
 			}),
 		})
+		log.Info("Accept button added")
 	}
 	if status != "DECLINED" {
 		commandBinding.Bindings[i].Bindings = append(commandBinding.Bindings[i].Bindings, apps.Binding{
@@ -141,6 +144,7 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 				ActingUser:            apps.ExpandAll,
 			}),
 		})
+		log.Info("Declined button added")
 	}
 
 	if status != "TENTATIVE" {
@@ -154,6 +158,7 @@ func (c CalendarServiceImpl) AddButtonsToEvents(commandBinding apps.Binding, sta
 				ActingUser:            apps.ExpandAll,
 			}),
 		})
+		log.Info("Tentative button added")
 	}
 	return commandBinding
 }
@@ -199,6 +204,7 @@ func (c CalendarRequestServiceImpl) getUserCalendars() (UserCalendarsResponse, e
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	client := &http.Client{}
+	log.Info("Sending user get user calendar request")
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 
@@ -227,6 +233,7 @@ func (c CalendarRequestServiceImpl) deleteUserEvent() (*http.Response, error) {
 	client := &http.Client{}
 	req.Header.Set("Content-Type", "text/xml")
 	req.Header.Set("Authorization", "Bearer "+c.Token)
+	log.Info("Sending a delete request")
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 
@@ -302,6 +309,7 @@ func (c CalendarRequestServiceImpl) createEvent(body string) (*http.Response, er
 	req.Header.Set("Authorization", "Bearer "+c.Token)
 
 	client := &http.Client{}
+	log.Info("Sending create event request to Nextcloud")
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
@@ -318,9 +326,10 @@ func (c CalendarRequestServiceImpl) createEvent(body string) (*http.Response, er
 func (c CalendarRequestServiceImpl) getCalendarEvent() (string, error) {
 	req, _ := http.NewRequest("GET", c.Url, nil)
 	req.Header.Set("Authorization", "Bearer "+c.Token)
-
+	log.Info("Sending get calendar event request")
 	client := &http.Client{}
 	resp, _ := client.Do(req)
+	log.Info("Sending get calendar event request")
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
