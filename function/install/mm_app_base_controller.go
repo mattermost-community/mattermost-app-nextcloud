@@ -159,23 +159,31 @@ func Bindings(c *gin.Context) {
 		}),
 	})
 
-	c.JSON(http.StatusOK, apps.CallResponse{
+	bindings := make([]apps.Binding, 0)
+
+	if len(upload.Label) != 0 {
+		bindings = append(bindings, apps.Binding{
+			Location: apps.LocationPostMenu,
+			Label:    "Nextcloud",
+			Bindings: []apps.Binding{
+				upload,
+			},
+		})
+	}
+
+	bindings = append(bindings, apps.Binding{
+		Location: apps.LocationCommand,
+		Bindings: []apps.Binding{
+			commandBinding,
+		},
+	})
+
+	response := apps.CallResponse{
 		Type: apps.CallResponseTypeOK,
-		Data: []apps.Binding{
-			{
-				Location: apps.LocationCommand,
-				Bindings: []apps.Binding{
-					commandBinding,
-				},
-			},
-			{
-				Location: apps.LocationPostMenu,
-				Label:    "Nextcloud",
-				Bindings: []apps.Binding{
-					upload,
-				},
-			},
-		}})
+		Data: bindings,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func remarshal(dst, src interface{}) {
