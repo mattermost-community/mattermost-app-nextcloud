@@ -6,6 +6,7 @@ import (
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -75,7 +76,7 @@ func createSearchRequestBody(userName string, fileName string) string {
 
 type SearchSelectOptions interface {
 	CreateFileSelectOptions(files []FileResponse) []apps.SelectOption
-	CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string) ([]apps.SelectOption, apps.SelectOption)
+	CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string, onlyWithFiles bool) ([]apps.SelectOption, apps.SelectOption)
 }
 
 type SearchSelectOptionsImpl struct {
@@ -118,18 +119,21 @@ func (SearchSelectOptionsImpl) CreateFileSelectOptions(files []FileResponse) []a
 	return fileSelectOptions
 }
 
-func (SearchSelectOptionsImpl) CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string) ([]apps.SelectOption, apps.SelectOption) {
+func (SearchSelectOptionsImpl) CreateFolderSelectOptions(resp FileSearchResponseBody, userId string, rootLabel string, rootValue string, onlyWithFiles bool) ([]apps.SelectOption, apps.SelectOption) {
 	folderSelectOptions := make([]apps.SelectOption, 0)
 	for _, f := range resp.FileResponse {
-		hasContentType := false
+		size, _ := strconv.Atoi(f.PropertyStats[0].Property.Size)
 
-		for _, p := range f.PropertyStats {
-			if len(p.Property.Getcontenttype) != 0 {
-				hasContentType = true
-				break
-			}
+		hasContentType := false
+		p := f.PropertyStats[0]
+		if len(p.Property.Getcontenttype) != 0 {
+			hasContentType = true
 		}
+
 		if !hasContentType {
+			if onlyWithFiles && size == 0 {
+				continue
+			}
 			split := strings.Split(f.Href, "/remote.php/dav/files/"+userId)[1]
 			option := apps.SelectOption{Label: split[1 : len(split)-1], Value: split}
 			folderSelectOptions = append(folderSelectOptions, option)

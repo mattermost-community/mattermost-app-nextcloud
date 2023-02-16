@@ -18,7 +18,7 @@ func TestCreateFolderSelectOptions(t *testing.T) {
 
 	expectedDefaultLabel := "root_label"
 	expectedDefaultValue := "root_value"
-	options, defaultOption := testedInstance.CreateFolderSelectOptions(searchRespBody, "user", expectedDefaultLabel, expectedDefaultValue)
+	options, defaultOption := testedInstance.CreateFolderSelectOptions(searchRespBody, "user", expectedDefaultLabel, expectedDefaultValue, false)
 
 	if expectedDefaultLabel != defaultOption.Label || expectedDefaultValue != defaultOption.Value {
 		t.Error("Wrong default option created")

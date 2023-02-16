@@ -25,11 +25,15 @@ func HandleCreateEvent(c *gin.Context) {
 
 	oauthService := oauth.OauthServiceImpl{creq}
 
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 	accessToken := token.AccessToken
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleCreateEvent") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleCreateEvent") {
 		return
 	}
 	log.Infof("Received a create event request for the mm user with id: %s", creq.Context.ActingUser.Id)
@@ -120,10 +124,14 @@ func HandleCreateEventForm(c *gin.Context) {
 	}
 
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleCreateEventForm") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleCreateEventForm") {
 		return
 	}
 
@@ -233,9 +241,14 @@ func HandleDeleteCalendarEvent(c *gin.Context) {
 	}
 
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleDeleteCalendarEvent") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleDeleteCalendarEvent") {
 		return
 	}
 	log.Infof("Received a delete event request for the mm user with id: %s", creq.Context.ActingUser.Id)
@@ -316,11 +329,16 @@ func HandleGetEventsToday(c *gin.Context) {
 		return
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 	log.Infof("Received a get events request for today for the mm user with id: %s", creq.Context.ActingUser.Id)
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsToday") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleGetEventsToday") {
 		return
 	}
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
@@ -351,10 +369,15 @@ func HandleGetEventsTomorrow(c *gin.Context) {
 		return
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsTomorrow") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleGetEventsTomorrow") {
 		return
 	}
 	log.Infof("Received a get events request for tomorrow for the mm user with id: %s", creq.Context.ActingUser.Id)
@@ -388,10 +411,15 @@ func HandleGetEventsAtSelectedDay(c *gin.Context) {
 		return
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleGetEventsAtSelectedDay") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleGetEventsAtSelectedDay") {
 		return
 	}
 	log.Infof("Received a get events request for a selected date for the mm user with id: %s", creq.Context.ActingUser.Id)
@@ -431,10 +459,15 @@ func HandleChangeEventStatus(c *gin.Context) {
 		return
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
+
 	accessToken := token.AccessToken
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleChangeEventStatus") {
 		return
 	}
 	log.Infof("Received a change event status request for the mm user with id: %s", creq.Context.ActingUser.Id)
@@ -519,10 +552,16 @@ func HandleGetUserCalendars(c *gin.Context) {
 		return
 	}
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
+
 	accessToken := token.AccessToken
 	asActingUser := appclient.AsActingUser(creq.Context)
-	if handleStoreTokenInMMError(c, asActingUser, token, "HandleChangeEventStatus") {
+	if handleStoreTokenInMMError(c, asActingUser, *token, "HandleChangeEventStatus") {
 		return
 	}
 	log.Infof("Received a get user calendars request for the mm user with id: %s", creq.Context.ActingUser.Id)

@@ -25,9 +25,15 @@ func FileUploadForm(c *gin.Context) {
 	}
 
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
+
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	asActingUser.StoreOAuth2User(*token)
 
 	userId := creq.Context.OAuth2.User.(map[string]interface{})["user_id"].(string)
 
@@ -41,7 +47,7 @@ func FileUploadForm(c *gin.Context) {
 		c.JSON(http.StatusOK, apps.NewErrorResponse(errors.New("Request failed during file search")))
 	}
 	searchService := SearchSelectOptionsImpl{}
-	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(*resp, userId, "Root", "/")
+	folderSelectOptions, rootSelectOption := searchService.CreateFolderSelectOptions(*resp, userId, "Root", "/", false)
 
 	fileSelectOptions := make([]apps.SelectOption, 0)
 	fileInfos, _, _ := asActingUser.GetFileInfosForPost(creq.Context.Post.Id, "")
@@ -99,9 +105,15 @@ func FileShareForm(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
+
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	asActingUser.StoreOAuth2User(*token)
 	accessToken := token.AccessToken
 
 	var folderName string
@@ -141,7 +153,7 @@ func FileShareForm(c *gin.Context) {
 		return
 	}
 
-	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(*folderSearchResp, userId, "Root", "")
+	folderSelectOptions, defaultSelectOption := searchService.CreateFolderSelectOptions(*folderSearchResp, userId, "Root", "", true)
 
 	if creq.Values["Folder"] != nil {
 		for _, so := range folderSelectOptions {
@@ -166,6 +178,22 @@ func FileShareForm(c *gin.Context) {
 		return folderSelectOptions[i].Label < folderSelectOptions[j].Label
 	})
 
+	preSelectedFilesOptions := make([]apps.SelectOption, 0)
+	if creq.Values["Files"] != nil {
+
+		preSelectedFiles := creq.Values["Files"].([]interface{})
+
+		if len(preSelectedFiles) > 0 {
+
+			for _, file := range preSelectedFiles {
+				label := file.(map[string]interface{})["label"].(string)
+				value := file.(map[string]interface{})["value"].(string)
+				option := apps.SelectOption{Label: label, Value: value}
+				preSelectedFilesOptions = append(preSelectedFilesOptions, option)
+			}
+		}
+	}
+
 	form := &apps.Form{
 		Title: "File share ",
 		Icon:  "icon.png",
@@ -186,6 +214,7 @@ func FileShareForm(c *gin.Context) {
 				IsRequired:          true,
 				SelectIsMulti:       true,
 				SelectStaticOptions: fileSelectOptions,
+				Value:               preSelectedFilesOptions,
 			},
 		},
 		Source: apps.NewCall("/file/search/form").WithExpand(apps.Expand{
@@ -211,9 +240,14 @@ func FileShare(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	asActingUser.StoreOAuth2User(*token)
 	accessToken := token.AccessToken
 	remoteUrl := creq.Context.OAuth2.OAuth2App.RemoteRootURL
 	url := fmt.Sprintf("%s%s", remoteUrl, "/ocs/v2.php/apps/files_sharing/api/v1/shares")
@@ -255,9 +289,13 @@ func FileUpload(c *gin.Context) {
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
 	oauthService := oauth.OauthServiceImpl{creq}
-	token := oauthService.RefreshToken()
+	token, refreshErr := oauthService.RefreshToken()
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(token)
+	asActingUser.StoreOAuth2User(*token)
 
 	files := creq.Values["Files"].([]interface{})
 

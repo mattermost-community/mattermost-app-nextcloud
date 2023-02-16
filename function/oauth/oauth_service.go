@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"net/http"
 
@@ -11,14 +12,14 @@ import (
 )
 
 type OauthService interface {
-	RefreshToken() Token
+	RefreshToken() (*Token, error)
 }
 
 type OauthServiceImpl struct {
 	Creq apps.CallRequest
 }
 
-func (s OauthServiceImpl) RefreshToken() Token {
+func (s OauthServiceImpl) RefreshToken() (*Token, error) {
 
 	clientId := s.Creq.Context.OAuth2.OAuth2App.ClientID
 	clientSecret := s.Creq.Context.OAuth2.OAuth2App.ClientSecret
@@ -41,18 +42,26 @@ func (s OauthServiceImpl) RefreshToken() Token {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
+
+	log.Infof("refresh token response status %s", resp.Status)
 	if err != nil {
 		log.Errorf("Error during refreshing of the token. Error: %s", err)
 	}
 
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Errorf("refresh token response status code %d for user", resp.StatusCode)
+		return nil, errors.New("Request for Nextcloud token refresh is failed")
+	}
+
 	jsonResp := Token{}
 	json.NewDecoder(resp.Body).Decode(&jsonResp)
+	log.Infof("refresh token response status code %d for user %s", resp.StatusCode, jsonResp.UserID)
 
-	return jsonResp
+	return &jsonResp, nil
 
 }
 
-func getToken(creq apps.CallRequest) Token {
+func getToken(creq apps.CallRequest) (*Token, error) {
 	code, _ := creq.Values["code"].(string)
 
 	clientId := creq.Context.OAuth2.OAuth2App.ClientID
@@ -77,8 +86,14 @@ func getToken(creq apps.CallRequest) Token {
 	if err != nil {
 		log.Errorf("Error during getting of the token. Error: %s", err)
 	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Errorf("get token response status code %d for user", resp.StatusCode)
+		return nil, errors.New("Request for Nextcloud token is failed")
+	}
+
 	defer resp.Body.Close()
 	jsonResp := Token{}
 	json.NewDecoder(resp.Body).Decode(&jsonResp)
-	return jsonResp
+	return &jsonResp, nil
 }

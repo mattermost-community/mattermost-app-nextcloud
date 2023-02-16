@@ -52,10 +52,15 @@ func Oauth2Complete(c *gin.Context) {
 	creq := apps.CallRequest{}
 	json.NewDecoder(c.Request.Body).Decode(&creq)
 
-	resp := getToken(creq)
+	resp, refreshErr := getToken(creq)
+
+	if refreshErr != nil {
+		c.JSON(http.StatusOK, apps.NewErrorResponse(refreshErr))
+		return
+	}
 
 	asActingUser := appclient.AsActingUser(creq.Context)
-	asActingUser.StoreOAuth2User(resp)
+	asActingUser.StoreOAuth2User(*resp)
 
 	asBot := appclient.AsBot(creq.Context)
 	asBot.KVSet("", fmt.Sprintf("nc-user-%s", resp.UserID), creq.Context.ActingUser.Id)
