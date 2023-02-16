@@ -218,7 +218,7 @@ func (s DetailsViewFormService) CreateViewButton(commandBinding *apps.Binding, l
 	if property == nil {
 		description = ""
 	} else {
-		description = property.Value
+		description = strings.ReplaceAll(property.Value, "\\n", "\n")
 	}
 	zoomLinks, googleMeetLinks := s.getZoomAndGoogleMeetLinksFromDescription(description)
 	service := EmailToNicknameCastService{GetMMUser: postDTO.bot}
@@ -361,7 +361,7 @@ func (s CreateCalendarEventPostService) CreateCalendarEventPost(postDTO *Calenda
 		Location:    "embedded",
 		AppID:       "nextcloud",
 		Label:       s.createNameForEvent(name, postDTO),
-		Description: "Going?",
+		Description: "",
 		Bindings:    []apps.Binding{},
 	}
 	calendarService := CalendarServiceImpl{}
