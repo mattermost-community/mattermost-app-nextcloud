@@ -111,7 +111,6 @@ func RedirectToAMeeting(c *gin.Context) {
 	if handleJsonParsingError(c, &creq, "RedirectToAMeeting") {
 		return
 	}
-	log.Infof("Received a redirect to a meeting request for the user with id: %s to a meeting link", creq.Context.ActingUser.Id)
 	link := fmt.Sprint(creq.State)
 	response := apps.CallResponse{Type: apps.CallResponseTypeNavigate, NavigateToURL: link}
 	c.JSON(http.StatusOK, response)

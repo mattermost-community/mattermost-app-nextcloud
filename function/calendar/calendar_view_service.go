@@ -369,7 +369,6 @@ func (s CreateCalendarEventPostService) CreateCalendarEventPost(postDTO *Calenda
 	if eventStatus == "CANCELLED" {
 		log.Info("This event is canceled")
 		commandBinding.Label = fmt.Sprintf("Cancelled ~~%s~~", commandBinding.Label)
-		commandBinding.Description = fmt.Sprintf("~~%s~~", commandBinding.Description)
 		m1 := make(map[string]interface{})
 		m1["app_bindings"] = []apps.Binding{commandBinding}
 
