@@ -65,6 +65,7 @@ CHUNK_FILE_SIZE_MB <br />
 MAX_FILE_SIZE_MB <br />
 MAX_FILES_SIZE_MB <br />
 GIN_MODE=release <br />
+MAX_REQUEST_RETRIES=3 <br />
 
 #### HTTP configuration
 Add environmental variables:   <br />
@@ -77,4 +78,5 @@ MAX_FILES_SIZE_MB=50 <br />
 APP_URL=http://localhost:8082 <br />
 PORT=8082 <br />
 GIN_MODE=release <br />
+MAX_REQUEST_RETRIES=3 <br />
 
