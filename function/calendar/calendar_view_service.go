@@ -492,3 +492,17 @@ func (s GetEventsService) GetUserEvents(creq apps.CallRequest, date time.Time, c
 
 	return nil
 }
+
+func (s CalendarTimePostService) RoundTime(date *time.Time) {
+	minutes := date.Minute()
+	minutesInHour := 60
+	minutesInHalfAnHour := 30
+
+	if minutes >= 0 && minutes < 30 {
+		*date = date.Add(time.Minute * time.Duration(minutesInHalfAnHour-minutes))
+	}
+
+	if minutes > 29 {
+		*date = date.Add(time.Minute * time.Duration(minutesInHour-minutes))
+	}
+}

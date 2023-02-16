@@ -152,6 +152,7 @@ func HandleCreateEventForm(c *gin.Context) {
 	loc := calendarTimePostService.GetMMUserLocation(creq)
 
 	currentUserTime := time.Now().In(loc)
+	calendarTimePostService.RoundTime(&currentUserTime)
 
 	dateFormatService := DateFormatLocaleService{}
 	parsedLocale := dateFormatService.GetLocaleByTag(creq.Context.ActingUser.Locale)
