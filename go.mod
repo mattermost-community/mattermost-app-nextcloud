@@ -9,6 +9,7 @@ require (
 	github.com/gin-gonic/gin v1.8.1
 	github.com/jarylc/go-chrono/v2 v2.4.2
 	github.com/mattermost/mattermost-plugin-apps v1.2.0
+	github.com/hashicorp/go-retryablehttp v0.7.2
 )
 
 require (

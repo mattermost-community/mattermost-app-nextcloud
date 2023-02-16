@@ -11,6 +11,7 @@ services:
       - MAX_FILES_SIZE_MB=50
       - APP_URL=http://localhost:8082
       - PORT=8082
+      - MAX_REQUEST_RETRIES=3
 
     build:
       context: .

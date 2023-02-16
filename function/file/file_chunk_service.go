@@ -3,9 +3,12 @@ package file
 import (
 	"bytes"
 	"fmt"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mattermost/mattermost-server/v6/model"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 type FileChunkService interface {
@@ -23,13 +26,19 @@ func (f *FileChunkServiceImpl) createChunkFolder(url string) (*http.Response, er
 	req, _ := http.NewRequest("MKCOL", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
 
 	defer resp.Body.Close()
+
+	if err != nil {
+		log.Errorf("Error during refreshing of the token. Error: %s", err)
+		return nil, err
+	}
 
 	if resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
@@ -45,12 +54,19 @@ func (f *FileChunkServiceImpl) uploadFileChunk(file []byte, start string, end st
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(file))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
+	defer resp.Body.Close()
+
 	if err != nil {
+		log.Errorf("Error during uploading of file chunks. Error: %s", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
+
 	if resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
 		error := fmt.Errorf("request failed with code %d", resp.StatusCode)
@@ -65,13 +81,19 @@ func (f *FileChunkServiceImpl) assembleChunk(dest string, baseurl string) (*http
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 	req.Header.Set("Destination", dest)
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
 
+	defer resp.Body.Close()
+
 	if err != nil {
+		log.Errorf("Error during assembling chunks. Error: %s", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)
@@ -86,12 +108,19 @@ func (f *FileChunkServiceImpl) abortChunkUpload(url string) (*http.Response, err
 	req, _ := http.NewRequest("DELETE", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", f.Token))
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
+
+	defer resp.Body.Close()
+
 	if err != nil {
+		log.Errorf("Error during aborting of chunk uploading. Error: %s", err)
 		return nil, err
 	}
-	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusCreated {
 		log.Errorf("request failed with status %s", resp.Status)

@@ -4,9 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"os"
+	"strconv"
 
 	"github.com/mattermost/mattermost-plugin-apps/apps"
 )
@@ -39,7 +42,10 @@ func (s OauthServiceImpl) RefreshToken() (*Token, error) {
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	req.SetBasicAuth(clientId, clientSecret)
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 
@@ -81,7 +87,10 @@ func getToken(creq apps.CallRequest) (*Token, error) {
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	req.SetBasicAuth(clientId, clientSecret)
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Errorf("Error during getting of the token. Error: %s", err)

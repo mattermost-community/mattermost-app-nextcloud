@@ -3,8 +3,11 @@ package file
 import (
 	"bytes"
 	"fmt"
+	"github.com/hashicorp/go-retryablehttp"
 	log "github.com/sirupsen/logrus"
 	"net/http"
+	"os"
+	"strconv"
 )
 
 type FileFullUploadService interface {
@@ -19,10 +22,15 @@ func (s *FileFullUploadServiceImpl) UploadFile(file []byte, url string) (*http.R
 	req, _ := http.NewRequest("PUT", url, bytes.NewBuffer(file))
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", s.Token))
 
-	client := &http.Client{}
+	maxRetries, _ := strconv.Atoi(os.Getenv("MAX_REQUEST_RETRIES"))
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = maxRetries
+
+	client := retryClient.StandardClient()
 	resp, err := client.Do(req)
 	defer resp.Body.Close()
 	if err != nil {
+		log.Errorf("Error during file uploading. Error: %s", err)
 		return nil, err
 	}
 
