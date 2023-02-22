@@ -1,0 +1,47 @@
+{
+  "app_id": "nextcloud",
+  "version": "v1.0.0",
+  "homepage_url": "https://github.com/mattermost/mattermost-plugin-apps/examples/go/hello-oauth2",
+  "display_name": "Nextcloud integration app",
+  "icon": "icon.png",
+  "bindings": {
+    "path": "/bindings",
+    "expand": {
+      "acting_user": "all",
+      "oauth2_user": "all",
+      "channel": "all"
+    }
+  },
+  "requested_permissions": [
+    "act_as_user",
+    "remote_oauth2",
+    "act_as_bot",
+    "remote_webhooks"
+  ],
+  "remote_webhook_auth_type": "none",
+  "requested_locations": [
+    "/command",
+    "/post_menu"
+  ],
+  "on_oauth2_complete": {
+    "path": "/oauth2/complete",
+    "expand": {
+      "oauth2_app": "all",
+      "acting_user_access_token": "all",
+      "acting_user": "all"
+    }
+  },
+  "http": {
+    "root_url": "http://localhost:8002"
+  },
+  "aws_lambda": {
+    "functions": [
+      {
+        "path": "/",
+        "name": "nextcloud",
+        "handler": "nextcloud",
+        "runtime": "go1.x"
+      }
+    ]
+  }
+}

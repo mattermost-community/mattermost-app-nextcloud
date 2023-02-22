@@ -1,0 +1,20 @@
+version: '3'
+
+services:
+  mattermost-app-nextcloud:
+    environment:
+      - JWT_SECRET=secret
+      - STATIC_FOLDER=static
+      - APP_TYPE=HTTP
+      - CHUNK_FILE_SIZE_MB=15
+      - MAX_FILE_SIZE_MB=25
+      - MAX_FILES_SIZE_MB=50
+      - APP_URL=http://localhost:8082
+      - PORT=8082
+      - MAX_REQUEST_RETRIES=3
+
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '8082:8082'
