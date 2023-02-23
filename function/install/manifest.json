@@ -1,7 +1,7 @@
 {
   "app_id": "nextcloud",
   "version": "v1.0.0",
-  "homepage_url": "https://github.com/mattermost/mattermost-plugin-apps/examples/go/hello-oauth2",
+  "homepage_url": "https://github.com/mattermost/mattermost-app-nextcloud",
   "display_name": "Nextcloud integration app",
   "icon": "icon.png",
   "bindings": {
