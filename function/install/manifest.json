@@ -32,7 +32,7 @@
     }
   },
   "http": {
-    "root_url": "http://localhost:8002"
+    "root_url": "http://localhost:8082"
   },
   "aws_lambda": {
     "functions": [
